@@ -27,6 +27,8 @@ class DeviceProfile:
     brand: str = ""
     manufacturer: str = ""
     model: str = ""
+    market_name: str = ""  # "OPPO Reno15 F 5G" — what people call the phone
+    soc: str = ""
     codenames: list[str] = field(default_factory=list)  # most specific first, deduplicated
     android_version: str = ""
     sdk: int | None = None
@@ -39,6 +41,8 @@ class DeviceProfile:
     ab: Tristate = "unknown"
     current_slot: str = ""
     dynamic_partitions: Tristate = "unknown"
+    virtual_ab: Tristate = "unknown"
+    boot_partitions: list[str] = field(default_factory=list)  # init_boot / vendor_boot when the device has them
     treble: Tristate = "unknown"
     vndk_version: str = ""
     system_as_root: Tristate = "unknown"
@@ -71,6 +75,11 @@ class DeviceProfile:
         return self
 
 
+# Marketing name properties used by different vendors
+_MARKET_NAME_PROPS = ("ro.product.marketname", "ro.product.vendor.marketname", "ro.vendor.oplus.market.name",
+                      "ro.config.marketing_name", "ro.product.odm.marketname", "ro.vendor.product.display")
+
+
 def _codenames(*candidates: str | None) -> list[str]:
     out: list[str] = []
     for c in candidates:
@@ -100,9 +109,13 @@ def from_props(props: dict[str, str], mode: Mode = "android", serial: str = "") 
         brand=g("ro.product.brand", "") or g("ro.product.system.brand", ""),
         manufacturer=g("ro.product.manufacturer", "") or g("ro.product.vendor.manufacturer", ""),
         model=g("ro.product.model", "") or g("ro.product.vendor.model", ""),
+        market_name=next((g(k) for k in _MARKET_NAME_PROPS if g(k)), ""),
+        soc=" ".join(x for x in (g("ro.soc.manufacturer"), g("ro.soc.model")) if x),
         # vendor/odm values describe the hardware even under a GSI; ro.product.device may be the ROM's name
+        # ro.product.board / ro.board.platform are SoC platform names (msm8937, parrot), never device codenames:
+        # looking them up could match an unrelated phone
         codenames=_codenames(g("ro.product.vendor.device"), g("ro.product.odm.device"), g("ro.product.device"),
-                             g("ro.build.product"), g("ro.product.board"), g("ro.lineage.device")),
+                             g("ro.build.product"), g("ro.lineage.device")),
         android_version=g("ro.build.version.release", ""),
         sdk=int(sdk) if sdk and sdk.isdigit() else None,
         security_patch=g("ro.build.version.security_patch", ""),
@@ -114,6 +127,9 @@ def from_props(props: dict[str, str], mode: Mode = "android", serial: str = "") 
         ab=ab,
         current_slot=(g("ro.boot.slot_suffix") or "").lstrip("_"),
         dynamic_partitions=_yesno(g("ro.boot.dynamic_partitions")),
+        virtual_ab=_yesno(g("ro.virtual_ab.enabled")),
+        boot_partitions=[p for p in ("init_boot", "vendor_boot")
+                         if p in (g("ro.product.ab_ota_partitions") or "").split(",")],
         treble=_yesno(g("ro.treble.enabled")),
         vndk_version=g("ro.vndk.version", ""),
         system_as_root=_yesno(g("ro.build.system_root_image")),

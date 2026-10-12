@@ -29,7 +29,7 @@ def test_profile_a_only_treble_huawei():
     p = from_props(props)
     assert p.brand == "HUAWEI" and p.model == "ATU-L21"
     # hardware codename (vendor) first, ROM's device name kept as alias
-    assert p.codenames[:2] == ["msm8937_64", "atu_l21"]
+    assert p.codenames == ["msm8937_64", "atu_l21"]  # board "msm8937" is not a codename
     # Huawei reports flash.locked=1/green even when unlocked; ro.userlock is right
     assert p.bootloader_unlocked == "yes"
     # ro.build.ab_update=true comes from the A/B-built GSI system; no slot suffix = A-only
@@ -78,3 +78,12 @@ def test_merge_keeps_known_values():
     b = from_fastboot({"product": "ATU-L21", "slot-count": "1"})
     a.merge(b)
     assert a.codenames == ["atu_l21", "ATU-L21"] and a.ab == "no" and a.bootloader_unlocked == "yes"
+
+
+def test_profile_oppo_virtual_ab_locked():
+    p = from_props(parse_getprop((FIX / "oppo_cph2801_android16_getprop.txt").read_text()))
+    assert p.market_name == "OPPO Reno15 F 5G" and p.soc == "QTI SM6450"
+    assert p.codenames == ["OP628FL1", "CPH2801TR"]  # not the "parrot" platform
+    assert p.bootloader_unlocked == "no" and p.ab == "yes" and p.current_slot == "b"
+    assert p.dynamic_partitions == "yes" and p.virtual_ab == "yes"
+    assert p.boot_partitions == ["init_boot", "vendor_boot"]

@@ -19,11 +19,12 @@ from .platform.paths import downloads_dir
 from .platform.tools import find_tools, install_platform_tools
 
 _LABELS = [
-    ("mode", "Mode"), ("brand", "Brand"), ("model", "Model"), ("codename", "Codename"),
+    ("mode", "Mode"), ("brand", "Brand"), ("market_name", "Name"), ("model", "Model"), ("codename", "Codename"),
+    ("soc", "SoC"),
     ("android_version", "Android"), ("security_patch", "Security patch"),
     ("bootloader_unlocked", "Bootloader unlocked"), ("oem_unlock_allowed", "OEM unlocking allowed"),
     ("verified_boot_state", "Verified boot"), ("ab", "A/B slots"), ("current_slot", "Current slot"),
-    ("dynamic_partitions", "Dynamic partitions"), ("treble", "Treble"), ("vndk_version", "VNDK"),
+    ("dynamic_partitions", "Dynamic partitions"), ("virtual_ab", "Virtual A/B"), ("treble", "Treble"), ("vndk_version", "VNDK"),
     ("abi", "CPU ABI"), ("battery_percent", "Battery %"),
 ]
 
@@ -66,6 +67,8 @@ def cmd_detect(args) -> int:
         for key, label in _LABELS:
             if p.get(key) not in ("", None, "unknown"):
                 print(f"   {label:<22} {p[key]}")
+        if d.profile.boot_partitions:
+            print(f"   {'Boot partitions':<22} boot, {', '.join(d.profile.boot_partitions)}")
         if len(d.profile.codenames) > 1:
             print(f"   {'Other names':<22} {', '.join(d.profile.codenames[1:])}")
     return 0
