@@ -6,8 +6,8 @@ vendor's official procedure, finds a matching ROM (LineageOS, crDroid, Evolution
 recovery (TWRP, OrangeFox, LineageOS Recovery), verifies the downloads and flashes them — asking before every
 destructive step. If no build exists it can, with your permission, build one locally.
 
-**Status: early development — milestones 1–4** (tool setup, USB drivers/udev, device detection, build catalog,
-verified downloads, official bootloader unlock flows, recovery + sideload install with a command guard). Tested on one real device so far; use `--dry-run` first.
+**Status: early development — milestones 1–5** (tool setup, USB drivers/udev, device detection, build catalog,
+verified downloads, official bootloader unlock flows, recovery + sideload install with a command guard, desktop app). Tested on one real device so far; use `--dry-run` first.
 See [DESIGN.md](DESIGN.md) for the plan and the deliberate limits (official unlock methods only, firmware
 partitions are never written).
 
@@ -50,6 +50,21 @@ Sources: LineageOS (download API), crDroid, Evolution X, DerpFest (their OTA JSO
 (official_devices API), TWRP (dl.twrp.me + published .sha256), OrangeFox (API v3).
 
 Detection is read-only. Serial numbers are shortened in the output unless `--show-serial` is given.
+
+## Desktop app
+
+```bash
+.venv/bin/pip install -e ".[gui]"
+.venv/bin/curseofdroid-gui
+```
+
+Four pages — Device, Bootloader, ROMs & recoveries, Install — over the same core as the CLI. Long operations run
+in the background; every risky step opens a dialog that needs `yes` typed in.
+
+## Platforms
+
+CI runs the tests and real platform-tools downloads on Linux, Windows and macOS (Python 3.10 and 3.13).
+Windows 10/11 and current macOS are supported; Windows 7/8/8.1 are not (no supported Python version).
 
 ## License
 

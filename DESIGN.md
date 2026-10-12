@@ -5,8 +5,8 @@ recovery: detect the device, install drivers/tools, check and (through the vendo
 bootloader, find a matching ROM and recovery, download and verify them, flash them, and — if nothing prebuilt
 exists and the user agrees — build one locally.
 
-Status (2026-10-12): milestones 1–4 implemented (detection, catalog, verified downloads, sideload install + guard,
-vendor unlock flows, USB drivers/udev). Tested read-only on a Huawei (A-only) and an OPPO (virtual A/B).
+Status (2026-10-12): milestones 1–5 implemented (detection, catalog, verified downloads, sideload install + guard,
+vendor unlock flows, USB drivers/udev, PySide6 desktop app). Tested read-only on a Huawei (A-only) and an OPPO (virtual A/B).
 
 ## 1. Goals and non-goals
 
