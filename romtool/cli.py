@@ -1,4 +1,4 @@
-"""Command line interface. M1: `tools` and `detect`."""
+"""Command line interface: `tools`, `detect`, `find`, `download`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,10 @@ import json
 import sys
 
 from . import __version__
+from .catalog.providers import ALL_PROVIDERS, TWRP, find_builds, is_stale
 from .device.detect import detect
+from .platform.net import VerificationError, download
+from .platform.paths import downloads_dir
 from .platform.tools import find_tools, install_platform_tools
 
 _LABELS = [
@@ -63,6 +66,86 @@ def cmd_detect(args) -> int:
     return 0
 
 
+def _codenames(args) -> list[str]:
+    if args.codename:
+        return args.codename
+    tools = _need_tools()
+    found = [d for d in detect(tools.adb, tools.fastboot) if d.profile and d.profile.codenames]
+    if not found:
+        sys.exit("No phone with a known codename connected; give the codename, e.g. `romtool find lavender`.")
+    names = found[0].profile.codenames
+    print(f"Device: {found[0].profile.brand} {found[0].profile.model} ({', '.join(names)})\n")
+    return names
+
+
+def _provider_names(args) -> list:
+    if not args.project:
+        return ALL_PROVIDERS
+    wanted = {p.lower().replace(" ", "") for p in args.project}
+    return [p for p in ALL_PROVIDERS if p.name.lower().replace(" ", "") in wanted]
+
+
+def cmd_find(args) -> int:
+    results, errors = find_builds(_codenames(args), _provider_names(args))
+    if args.json:
+        print(json.dumps({k: [{"version": b.version, "android": b.android, "date": str(b.date or ""),
+                               "variant": b.variant, "file": b.main.filename, "url": b.main.url,
+                               "size": b.main.size, "hashes": b.main.hashes, "info": b.info_url}
+                              for b in v] for k, v in results.items()}, indent=2))
+        return 0 if results else 1
+    for project, builds in results.items():
+        b = builds[0]
+        kind = "recovery" if b.kind == "recovery" else "ROM"
+        stale = "  (no build for 6+ months)" if is_stale(b) else ""
+        android = f" · Android {b.android}" if b.android else ""
+        date = f" · {b.date}" if b.date else ""
+        size = f" · {b.main.size / 2**30:.2f} GiB" if b.main.size else ""
+        print(f"{project:<12} {kind:<8} {b.version}{android}{date}{size}{stale}")
+        print(f"{'':<21} {b.main.filename}")
+        if b.info_url:
+            print(f"{'':<21} {b.info_url}")
+        if len(builds) > 1:
+            print(f"{'':<21} (+{len(builds) - 1} older/other variants: --json)")
+    for e in errors:
+        print(f"! {e}", file=sys.stderr)
+    if not results:
+        print("No official builds found. GSIs or a local build may still be possible (later milestones).")
+    return 0 if results else 1
+
+
+def cmd_download(args) -> int:
+    providers = _provider_names(args)
+    if len(providers) != 1:
+        sys.exit("Choose exactly one project with --project (e.g. --project LineageOS).")
+    p = providers[0]()
+    builds = []
+    for c in _codenames(args):
+        if builds := p.builds(c):
+            break
+    if not builds:
+        sys.exit(f"{p.name} has no build for this device.")
+    b = builds[0]
+    if isinstance(p, TWRP):
+        p.fill_hash(b)
+    dest = downloads_dir() / b.codename / b.main.filename
+    if not b.main.hashes:
+        print("! The project publishes no checksum for this file; only the size can be checked.")
+    print(f"Downloading {b.main.filename} -> {dest}")
+
+    def progress(done, total):
+        pct = f"{done * 100 // total:3d}%" if total else f"{done // 2**20} MiB"
+        print(f"\r  {pct}", end="", flush=True)
+
+    try:
+        download(b.main.url, dest, size=b.main.size, hashes=b.main.hashes, headers=b.main.headers,
+                 progress=progress)
+    except VerificationError as e:
+        print(f"\nVerification failed: {e}. The partial file was kept as .part; try again.")
+        return 1
+    print(f"\nVerified ({', '.join(b.main.hashes) or 'size'}): {dest}")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="romtool", description=__doc__)
     ap.add_argument("--version", action="version", version=__version__)
@@ -74,6 +157,15 @@ def main(argv=None) -> int:
     d.add_argument("--json", action="store_true")
     d.add_argument("--show-serial", action="store_true", help="do not shorten serial numbers")
     d.set_defaults(func=cmd_detect)
+    f = sub.add_parser("find", help="list official ROM and recovery builds for the device")
+    f.add_argument("codename", nargs="*", help="device codename(s); default: the connected phone")
+    f.add_argument("--project", action="append", help="limit to a project (repeatable)")
+    f.add_argument("--json", action="store_true")
+    f.set_defaults(func=cmd_find)
+    dl = sub.add_parser("download", help="download and verify the newest build from one project")
+    dl.add_argument("codename", nargs="*")
+    dl.add_argument("--project", action="append", required=True)
+    dl.set_defaults(func=cmd_download)
     args = ap.parse_args(argv)
     return args.func(args)
 
