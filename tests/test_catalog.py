@@ -113,3 +113,29 @@ def test_gsi_fit_and_asset_selection():
     builds = trebledroid_builds(oppo, fetch=lambda url: releases)
     assert [b.main.url for b in builds] == ["n", "o"]  # regular first, arm64 only
     assert "-old" in builds[1].variant
+
+
+def test_evolutionx_newest_branch_with_device_and_vanilla(monkeypatch):
+    from curseofdroid.catalog.providers import EvolutionX
+    raw = "https://raw.githubusercontent.com/Evolution-X/OTA"
+    entry = lambda f, maintained=True: {"response": [{  # noqa: E731
+        "filename": f, "download": "https://cdn/x", "timestamp": 1789445766, "sha256": "9" * 64, "size": 1,
+        "version": "11.11", "currently_maintained": maintained}]}
+    f = fetcher({raw + "/bka/builds/oriole.json": entry("Evo-16-oriole.zip", maintained=False),
+                 raw + "/bka-vanilla/builds/oriole.json": entry("Evo-16-oriole-Vanilla.zip"),
+                 raw + "/vic/builds/oriole.json": entry("Evo-15-oriole.zip")})
+    p = EvolutionX(f)
+    monkeypatch.setattr(p, "branches", lambda: ["cnb", "bka", "vic", "udc"])
+    builds = p.builds("oriole")
+    assert [b.main.filename for b in builds] == ["Evo-16-oriole.zip", "Evo-16-oriole-Vanilla.zip"]
+    assert builds[0].android == "16" and "Google" in builds[0].variant and "vanilla" in builds[1].variant
+    assert builds[0].notes == "not maintained anymore"
+    assert p.builds("lavender") == []
+
+
+def test_evolutionx_branch_order_from_api():
+    from curseofdroid.catalog.providers import EvolutionX
+    api = "https://api.github.com/repos/Evolution-X/OTA/branches?per_page=100"
+    names = ["bka", "bka-vanilla", "cnb", "cnb-vanilla", "udc", "vic"]
+    p = EvolutionX(fetcher({api: [{"name": n} for n in names]}))
+    assert p.branches() == ["cnb", "bka", "vic", "udc"]

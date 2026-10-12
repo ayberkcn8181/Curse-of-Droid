@@ -59,7 +59,8 @@ class _OtaJson(Provider):
                              from_timestamp(r.get("timestamp") or r.get("datetime")), arts, android=android,
                              variant=r.get("buildtype") or r.get("romtype") or "",
                              device_name=" ".join(x for x in (r.get("oem"), r.get("device")) if x),
-                             info_url=r.get("forum") or r.get("website") or ""))
+                             info_url=r.get("forum") or r.get("website") or "",
+                             notes="not maintained anymore" if r.get("currently_maintained") is False else ""))
         return out
 
 
@@ -85,11 +86,37 @@ class CrDroid(_OtaJson):
 
 
 class EvolutionX(_OtaJson):
+    """One OTA branch per Android version (udc=14, vic=15, bka=16, cnb=17), each with a "-vanilla" twin
+    (no Google apps). New branches start with few devices, so the newest branch that has the device wins."""
     name = "Evolution X"
     homepage = "https://evolution-x.org"
+    REPO = "Evolution-X/OTA"
+    ANDROID = {"udc": "14", "vic": "15", "bka": "16", "cnb": "17"}
+
+    def branches(self) -> list[str]:
+        try:
+            data = self._json(f"https://api.github.com/repos/{self.REPO}/branches?per_page=100")
+            names = [b["name"] for b in data if not b["name"].endswith("-vanilla")]
+        except Exception:  # API rate limit etc.
+            names = list(self.ANDROID)
+        known = [n for n in self.ANDROID if n in names]  # oldest -> newest
+        return list(reversed(known)) + [n for n in names if n not in self.ANDROID]
 
     def builds(self, codename):
-        return self._parse(self._try(f"{RAW}/Evolution-X/OTA/cnb/builds/{codename}.json"), codename)
+        for branch in self.branches():
+            gapps = self._try(f"{RAW}/{self.REPO}/{branch}/builds/{codename}.json")
+            if not gapps:
+                continue
+            android = self.ANDROID.get(branch, "")
+            out = self._parse(gapps, codename, android)
+            for b in out:
+                b.variant = "with Google apps"
+            vanilla = self._parse(self._try(f"{RAW}/{self.REPO}/{branch}-vanilla/builds/{codename}.json"),
+                                  codename, android)
+            for b in vanilla:
+                b.variant = "vanilla (no Google apps)"
+            return out + vanilla
+        return []
 
 
 class DerpFest(_OtaJson):
