@@ -5,7 +5,8 @@ recovery: detect the device, install drivers/tools, check and (through the vendo
 bootloader, find a matching ROM and recovery, download and verify them, flash them, and — if nothing prebuilt
 exists and the user agrees — build one locally.
 
-Status (2026-10-12): milestones 1–3 implemented (detection, catalog, verified downloads, sideload install + guard).
+Status (2026-10-12): milestones 1–4 implemented (detection, catalog, verified downloads, sideload install + guard,
+vendor unlock flows, USB drivers/udev). Tested read-only on a Huawei (A-only) and an OPPO (virtual A/B).
 
 ## 1. Goals and non-goals
 
@@ -21,8 +22,10 @@ Status (2026-10-12): milestones 1–3 implemented (detection, catalog, verified 
 **Non-goals (deliberate limits)**
 - Bootloader unlocking only through the vendor's official mechanism (fastboot unlock, vendor unlock token/code,
   Mi Unlock authorization, Samsung "OEM unlocking"). No exploits, no EDL/BROM/test-point unlocking, no carrier-lock
-  bypass, no FRP/Google-account or Mi-account lock bypass. A device the user can't unlock legitimately is reported as
-  "not unlockable" with the reason.
+  bypass, no FRP/Google-account or Mi-account lock bypass. For a device without an official method the tool says
+  exactly that — "no official unlock method is known, so a custom ROM/recovery can't be installed the official
+  way" — and never "can't be unlocked". The real lock state is always read from the device: if the user unlocks
+  it by other means, the tool detects that and continues normally.
 - No writing of low-level partitions (bootloader, modem/radio, persist, EFS/modemst, oeminfo, NV data, xbl/abl,
   preloader, tz, keymaster/keystore partitions …). The flash planner works from an allowlist (§6).
 - ClockworkMod is not offered: unmaintained since ~2015 and unable to install current ROMs. Listed as legacy with

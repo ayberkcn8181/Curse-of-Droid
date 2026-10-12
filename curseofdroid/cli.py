@@ -1,4 +1,4 @@
-"""Command line interface: `tools`, `detect`, `find`, `download`, `install`."""
+"""Command line interface: tools, drivers, detect, find, download, unlock, install."""
 
 from __future__ import annotations
 
@@ -14,6 +14,8 @@ from .device.detect import detect
 from .flash.executor import Executor, StepFailed
 from .flash.package import inspect as inspect_package
 from .flash.planner import InstallRequest, PlanError, plan_sideload_install
+from .platform import drivers
+from .vendors import vendor_for
 from .platform.net import VerificationError, download
 from .platform.paths import downloads_dir
 from .platform.tools import find_tools, install_platform_tools
@@ -163,6 +165,9 @@ class ConsoleUI:
         answer = input(f"   This step is [{step.risk}]. Type 'yes' to continue: ").strip().lower()
         return answer == "yes"
 
+    def ask(self, step):
+        return input(f"   {step.ask}: ")
+
     def manual(self, step):
         answer = input(f"   On the phone: {step.manual}\n   Press Enter when done (q to stop): ").strip().lower()
         return answer != "q"
@@ -170,10 +175,7 @@ class ConsoleUI:
 
 def cmd_install(args) -> int:
     tools = _need_tools()
-    found = [d for d in detect(tools.adb, tools.fastboot) if d.profile]
-    if len(found) != 1:
-        sys.exit("Connect exactly one phone (found %d)." % len(found))
-    dev = found[0]
+    dev = _one_device(tools)
     rom = inspect_package(Path(args.rom))
     req = InstallRequest(rom, recovery=Path(args.recovery) if args.recovery else None,
                          recovery_name=args.recovery_name or "", flash_recovery=args.flash_recovery,
@@ -198,6 +200,67 @@ def cmd_install(args) -> int:
               "or recovery mode to try again.")
         return 1
     print("\nDone.")
+    return 0
+
+
+def _one_device(tools):
+    found = [d for d in detect(tools.adb, tools.fastboot) if d.profile]
+    if len(found) != 1:
+        sys.exit("Connect exactly one phone (found %d)." % len(found))
+    return found[0]
+
+
+def cmd_unlock(args) -> int:
+    tools = _need_tools()
+    dev = _one_device(tools)
+    p = dev.profile
+    vendor = vendor_for(p)
+    info = vendor.info(p)
+    print(f"{p.market_name or (p.brand + ' ' + p.model)} — bootloader unlocked: {p.bootloader_unlocked}\n")
+    if p.bootloader_unlocked == "yes":
+        print("The bootloader is already unlocked; nothing to do.")
+        return 0
+    print(info.summary() + "\n")
+    for i, s in enumerate(info.steps, 1):
+        print(f"  {i}. {s}")
+    for n in info.notes:
+        print(f"  note: {n}")
+    for link in info.links:
+        print(f"  {link}")
+    plan = vendor.unlock_plan(p) if info.automated or info.official else None
+    if plan is None:
+        if not info.official:
+            return 1
+        print("\nThis vendor's procedure runs in its own tool/website; follow the steps above.")
+        return 0
+    print("\n" + plan.render())
+    if args.dry_run:
+        print("\n(dry run: nothing was done)")
+        return 0
+    if input("\nStart? Unlocking ERASES the phone. Type 'yes': ").strip().lower() != "yes":
+        return 1
+    try:
+        Executor(tools.adb, tools.fastboot, dev.serial, ConsoleUI()).run(plan)
+    except StepFailed as e:
+        print(f"\nStopped: {e}")
+        return 1
+    print("\nDone. The phone resets itself; set it up again (or continue with `install`).")
+    return 0
+
+
+def cmd_drivers(args) -> int:
+    st = drivers.status()
+    print(f"{st.platform}: {st.detail}")
+    if args.action == "status" or not st.needed:
+        return 0
+    if sys.platform.startswith("linux"):
+        print("\nRules to install:\n" + drivers.udev_rules())
+    for cmd in drivers.install_commands():
+        print("$ " + " ".join(cmd))
+    if input("\nThis needs administrator rights. Type 'yes' to continue: ").strip().lower() != "yes":
+        return 1
+    drivers.install()
+    print("Installed. Reconnect the phone.")
     return 0
 
 
@@ -231,6 +294,12 @@ def main(argv=None) -> int:
     i.add_argument("--extra", action="append", help="zip to sideload after the ROM (GApps, ...)")
     i.add_argument("--dry-run", action="store_true", help="only print the plan")
     i.set_defaults(func=cmd_install)
+    u = sub.add_parser("unlock", help="check the bootloader and unlock it with the vendor's official method")
+    u.add_argument("--dry-run", action="store_true")
+    u.set_defaults(func=cmd_unlock)
+    dr = sub.add_parser("drivers", help="USB access: udev rules (Linux) or Google's USB driver (Windows)")
+    dr.add_argument("action", nargs="?", choices=["status", "install"], default="status")
+    dr.set_defaults(func=cmd_drivers)
     args = ap.parse_args(argv)
     return args.func(args)
 

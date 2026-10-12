@@ -6,8 +6,8 @@ vendor's official procedure, finds a matching ROM (LineageOS, crDroid, Evolution
 recovery (TWRP, OrangeFox, LineageOS Recovery), verifies the downloads and flashes them — asking before every
 destructive step. If no build exists it can, with your permission, build one locally.
 
-**Status: early development — milestones 1–3** (tool setup, device detection, build catalog, verified downloads,
-recovery + sideload install with a command guard). Tested on one real device so far; use `--dry-run` first.
+**Status: early development — milestones 1–4** (tool setup, USB drivers/udev, device detection, build catalog,
+verified downloads, official bootloader unlock flows, recovery + sideload install with a command guard). Tested on one real device so far; use `--dry-run` first.
 See [DESIGN.md](DESIGN.md) for the plan and the deliberate limits (official unlock methods only, firmware
 partitions are never written).
 
@@ -21,6 +21,18 @@ python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/curseofdroid find            # official builds for the connected phone (or: curseofdroid find <codename>)
 .venv/bin/curseofdroid download lavender --project TWRP   # newest build, size + checksum verified
 ```
+
+Bootloader:
+
+```bash
+curseofdroid unlock --dry-run   # the vendor's official procedure for the connected phone, and the plan
+curseofdroid drivers install    # Linux: udev rules (asks for admin); Windows: Google USB Driver (verified)
+```
+
+Automated: Google Pixel, OnePlus, Nothing (`fastboot flashing unlock`), Motorola (unlock data → code from
+Motorola → `fastboot oem unlock`). Guided: Xiaomi (Mi Unlock), Samsung (Download mode), Sony (code). For brands
+without an official method (e.g. current OPPO/realme, Huawei/Honor) the tool says so — it does not claim the
+phone can't be unlocked, and if the bootloader is unlocked by other means it detects that and continues.
 
 Install through a custom recovery:
 

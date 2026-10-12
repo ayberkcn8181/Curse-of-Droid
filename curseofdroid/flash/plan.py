@@ -27,6 +27,9 @@ class Step:
     manual: str = ""  # something the user does on the phone; the runner waits for confirmation
     fastbootd: bool = False
     wait_timeout: float = 180  # seconds; the first boot of a new ROM needs much longer
+    unlock: bool = False  # bootloader unlock command(s) from a vendor flow (guard: allow_unlock)
+    ask: str = ""  # question for the user; the answer replaces "{answer}" in this step's commands
+    show_output: bool = False  # print the command output to the user (e.g. Motorola unlock data)
 
 
 @dataclass

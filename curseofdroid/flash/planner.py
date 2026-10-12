@@ -36,7 +36,7 @@ def preflight(profile: DeviceProfile, req: InstallRequest) -> list[str]:
     """Problems that block the install (empty list = OK)."""
     problems = []
     if profile.bootloader_unlocked == "no":
-        problems.append("the bootloader is locked: unlock it first (vendor's official procedure)")
+        problems.append("the bootloader is locked: see `curseofdroid unlock` for this phone")
     if profile.battery_percent is not None and profile.battery_percent < MIN_BATTERY:
         problems.append(f"battery at {profile.battery_percent}%: charge to at least {MIN_BATTERY}%")
     if req.rom.kind == "unknown":

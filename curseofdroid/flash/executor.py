@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass
 from typing import Callable, Protocol
@@ -17,6 +18,7 @@ class UI(Protocol):
     def info(self, text: str) -> None: ...
     def confirm(self, step: Step) -> bool: ...  # risky step: explicit consent
     def manual(self, step: Step) -> bool: ...  # user did something on the phone (False = abort)
+    def ask(self, step: Step) -> str: ...  # free-text answer ("" = abort)
 
 
 @dataclass
@@ -32,7 +34,8 @@ def validate(plan: Plan) -> None:
     """Every command of the plan must pass the guard before the first one runs."""
     for step in plan.steps:
         for c in step.commands:
-            check_command(c.tool, c.args, fastbootd=step.fastbootd, logical_ok=c.logical_ok)
+            check_command(c.tool, c.args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
+                          allow_unlock=step.unlock)
 
 
 class Executor:
@@ -54,11 +57,20 @@ class Executor:
                 raise StepFailed(step, "cancelled by the user")
             if step.manual and not self.ui.manual(step):
                 raise StepFailed(step, "cancelled by the user")
+            answer = ""
+            if step.ask:
+                answer = self.ui.ask(step).strip()
+                if not answer or not re.fullmatch(r"[\w-]{1,128}", answer):
+                    raise StepFailed(step, "no valid answer given")
             for c in step.commands:
+                args = [x.replace("{answer}", answer) for x in c.args]
                 # re-check right before running (defence in depth)
-                check_command(c.tool, c.args, fastbootd=step.fastbootd, logical_ok=c.logical_ok)
+                check_command(c.tool, args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
+                              allow_unlock=step.unlock)
                 tool = self.adb if c.tool == "adb" else self.fastboot
-                r = tool.run(*c.args, timeout=c.timeout)
+                r = tool.run(*args, timeout=c.timeout)
+                if step.show_output:
+                    self.ui.info((r.stdout + r.stderr).strip())
                 # adb sideload exits 0 on success; some recoveries print "Total xfer: 1.00x" and return 1
                 if not r.ok and not (c.args[:1] == ["sideload"] and "Total xfer" in r.stdout + r.stderr):
                     raise StepFailed(step, (r.stderr or r.stdout).strip()[-500:] or f"exit {r.returncode}")
