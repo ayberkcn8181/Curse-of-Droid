@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -15,6 +16,23 @@ from .paths import data_dir
 
 USER_AGENT = f"curseofdroid/{__version__} (+https://github.com/)"
 CACHE_SECONDS = 24 * 3600
+
+
+def ssl_context() -> ssl.SSLContext:
+    """CA certificates from certifi when available.
+
+    A frozen (PyInstaller) Python looks for the CA store at the path of the machine it was built on, which
+    doesn't exist on the user's machine — every HTTPS request then fails with CERTIFICATE_VERIFY_FAILED.
+    """
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+
+def urlopen(req, timeout: float):
+    return urllib.request.urlopen(req, timeout=timeout, context=ssl_context())
 
 
 class NotFound(Exception):
@@ -36,7 +54,7 @@ def fetch_text(url: str, cache: bool = True, timeout: float = 30) -> str:
             raise NotFound(url)
         return text
     try:
-        with urllib.request.urlopen(_request(url), timeout=timeout) as resp:
+        with urlopen(_request(url), timeout) as resp:
             text = resp.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as e:
         if e.code == 404:
@@ -71,7 +89,7 @@ def download(url: str, dest: Path, *, size: int | None = None, hashes: dict[str,
     req = _request(url, headers)
     if have:
         req.add_header("Range", f"bytes={have}-")
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with urlopen(req, 60) as resp:
         mode = "ab" if have and resp.status == 206 else "wb"
         done = have if mode == "ab" else 0
         with open(part, mode) as f:

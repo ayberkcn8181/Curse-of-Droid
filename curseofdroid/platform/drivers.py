@@ -13,7 +13,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from .net import USER_AGENT, verify
+from .net import USER_AGENT, urlopen, verify
 from .paths import tools_dir
 
 # USB vendor IDs of phone makers (adb, fastboot, recovery). Download/EDL modes are deliberately not included.
@@ -73,7 +73,7 @@ def install_commands() -> list[list[str]]:
 def download_google_usb_driver() -> Path:
     d = GOOGLE_USB_DRIVER
     req = urllib.request.Request(d["url"], headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with urlopen(req, 60) as resp:
         data = resp.read()
     tmp = tools_dir() / "usb_driver_r13-windows.zip"
     tmp.parent.mkdir(parents=True, exist_ok=True)

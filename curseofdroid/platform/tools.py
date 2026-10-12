@@ -6,11 +6,11 @@ import io
 import shutil
 import stat
 import sys
-import urllib.request
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from .net import urlopen
 from .paths import tools_dir
 
 PLATFORM_TOOLS_URL = "https://dl.google.com/android/repository/platform-tools-latest-{os}.zip"
@@ -57,7 +57,7 @@ def install_platform_tools(url: str | None = None) -> Tools:
     url = url or PLATFORM_TOOLS_URL.format(os=platform_tools_os())
     if not url.startswith("https://dl.google.com/"):
         raise ValueError(f"refusing to download platform-tools from {url}")
-    with urllib.request.urlopen(url, timeout=60) as resp:
+    with urlopen(url, 60) as resp:
         data = resp.read()
     dest = tools_dir()
     target = dest / "platform-tools"

@@ -37,6 +37,23 @@ jobs:
           d=$(ls -d dist/curseofdroid-*/ | head -1)
           "$d"curseofdroid/curseofdroid* --version
           "$d"curseofdroid/curseofdroid* find lavender --project TWRP
+      # The user's machine: no Python, no build-machine paths, no system CA store. A frozen Python that looks
+      # for certificates at the build machine's path fails every HTTPS request there (0.1.0a1 did).
+      - name: Run the Linux build on a clean system without CA certificates
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm -v "$PWD/dist":/dist:ro -e CURSEOFDROID_HOME=/tmp/h debian:stable-slim sh -c '
+            test ! -e /etc/ssl/certs/ca-certificates.crt
+            d=$(ls -d /dist/curseofdroid-*/ | head -1)
+            "$d"curseofdroid/curseofdroid find lavender --project TWRP 2>&1 | tee /tmp/out
+            ! grep -q CERTIFICATE_VERIFY_FAILED /tmp/out && grep -q twrp- /tmp/out'
+      - name: Check HTTPS without the build machine's certificate paths (Windows, macOS)
+        if: runner.os != 'Linux'
+        shell: bash
+        run: |
+          d=$(ls -d dist/curseofdroid-*/ | head -1)
+          SSL_CERT_FILE=/nonexistent SSL_CERT_DIR=/nonexistent "$d"curseofdroid/curseofdroid* find lavender --project TWRP 2>&1 | tee out.txt
+          ! grep -q CERTIFICATE_VERIFY_FAILED out.txt && grep -q twrp- out.txt
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}
