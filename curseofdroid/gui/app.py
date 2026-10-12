@@ -17,6 +17,7 @@ from ..catalog.providers import TWRP, find_builds, is_stale
 from ..device.detect import Detected, detect
 from ..flash.executor import Executor, StepFailed
 from ..flash.package import inspect as inspect_package
+from ..catalog.deviceinfo import device_info
 from ..catalog.gsi import trebledroid_builds, unpack_xz
 from ..flash.planner import InstallRequest, PlanError, plan_gsi_install, plan_sideload_install
 from ..platform import drivers
@@ -193,11 +194,15 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.info_label = QLabel()
+        self.info_label.setWordWrap(True)
+        self.info_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.dl_btn = QPushButton("Download selected (checksum verified)")
         self.dl_btn.clicked.connect(self.run_download)
         self.progress = QProgressBar()
         self.progress.setVisible(False)
-        return _wrap(QLabel("<h2>ROMs &amp; recoveries</h2>"), row, self.table, self.dl_btn, self.progress)
+        return _wrap(QLabel("<h2>ROMs &amp; recoveries</h2>"), row, self.info_label, self.table, self.dl_btn,
+                     self.progress)
 
     def run_find(self):
         names = [c for c in self.codename_edit.text().split() if c]
@@ -208,7 +213,11 @@ class MainWindow(QMainWindow):
         self.log(f"Searching for {', '.join(names)} …")
         profile = self.device.profile if self.device and not self.codename_edit.text().strip() else None
 
+        hint = profile.brand if profile else ""
+        models = [profile.model] if profile and profile.model else []
+
         def work(_p):
+            info = device_info(names[0], hint, models)
             results, errors = find_builds(names)
             if profile:  # GSIs depend on the connected phone's Treble/ABI/layout, not on a codename
                 try:
@@ -216,12 +225,14 @@ class MainWindow(QMainWindow):
                         results["TrebleDroid GSI"] = gsi
                 except Exception as e:
                     errors.append(f"TrebleDroid: {e}")
-            return results, errors
+            return results, errors, info
 
         start(Job(work, on_done=self.show_builds, on_failed=self.fail))
 
     def show_builds(self, result):
-        results, errors = result
+        results, errors, info = result if len(result) == 3 else (*result, None)
+        if info:
+            self.info_label.setText(self.device_info_html(info))
         for e in errors:
             self.log("source error: " + e)
         self.builds = [b for builds in results.values() for b in builds[:3]]
@@ -233,6 +244,25 @@ class MainWindow(QMainWindow):
                 self.table.setItem(r, c, QTableWidgetItem(str(v)))
         self.log(f"{len(results)} projects have builds" if results else
                  "No official builds for this device.")
+
+    @staticmethod
+    def device_info_html(info) -> str:
+        from html import escape
+        title = " ".join(x for x in (info.vendor, info.name) if x) or info.codename
+        parts = [f"<b>{escape(title)}</b> — codename <code>{escape(info.codename)}</code>"]
+        if info.phones:
+            names = []
+            for m in info.phones:
+                n = m.name if m.name.lower().startswith(m.brand.lower()) else f"{m.brand} {m.name}"
+                names.append(f"{escape(n)} <small>({escape(', '.join(m.models[:6]))})</small>")
+            parts.append("Sold as: " + "; ".join(names))
+        keys = ("Released", "SoC", "RAM", "Storage", "Screen", "Battery")
+        specs = " · ".join(f"{k}: {escape(v)}" for k, v in info.specs.items() if k in keys)
+        if specs:
+            parts.append(specs)
+        if not info.phones and not info.specs:
+            parts.append("No public catalog entry for this codename.")
+        return "<br>".join(parts)
 
     def run_download(self):
         rows = {i.row() for i in self.table.selectedIndexes()}

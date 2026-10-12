@@ -13,6 +13,7 @@ from pathlib import Path
 from .device.detect import detect
 from .flash.executor import Executor, StepFailed
 from .flash.package import inspect as inspect_package
+from .catalog.deviceinfo import device_info
 from .catalog.gsi import gsi_fit, trebledroid_builds, unpack_xz
 from .flash.planner import InstallRequest, PlanError, plan_gsi_install, plan_sideload_install
 from .platform import drivers
@@ -77,7 +78,11 @@ def cmd_detect(args) -> int:
     return 0
 
 
+_connected = None  # profile of the phone _codenames() used, for brand/model hints
+
+
 def _codenames(args) -> list[str]:
+    global _connected
     if args.codename:
         return args.codename
     tools = _need_tools()
@@ -85,6 +90,7 @@ def _codenames(args) -> list[str]:
     if not found:
         sys.exit("No phone with a known codename connected; give the codename, e.g. `curseofdroid find lavender`.")
     names = found[0].profile.codenames
+    _connected = found[0].profile
     print(f"Device: {found[0].profile.brand} {found[0].profile.model} ({', '.join(names)})\n")
     return names
 
@@ -96,13 +102,41 @@ def _provider_names(args) -> list:
     return [p for p in ALL_PROVIDERS if p.name.lower().replace(" ", "") in wanted]
 
 
+def print_device_info(info) -> None:
+    title = " ".join(x for x in (info.vendor, info.name) if x) or info.codename
+    print(f"== {title} (codename {info.codename})")
+    if info.phones:
+        print("   Sold as:")
+        for m in info.phones:
+            models = f"  [{', '.join(m.models[:8])}{' …' if len(m.models) > 8 else ''}]" if m.models else ""
+            name = m.name if m.name.lower().startswith(m.brand.lower()) else f"{m.brand} {m.name}"
+            print(f"     {name}{models}")
+    elif not info.specs:
+        print("   No public catalog entry for this codename.")
+    for k, v in info.specs.items():
+        print(f"   {k + ':':<24}{v}")
+    print()
+
+
 def cmd_find(args) -> int:
-    results, errors = find_builds(_codenames(args), _provider_names(args))
+    names = _codenames(args)
+    info = None
+    if not args.no_info:
+        hint = _connected.brand if _connected else ""
+        models = [_connected.model] if _connected and _connected.model else []
+        info = device_info(names[0], hint, models)
+        if not args.json:
+            print_device_info(info)
+    results, errors = find_builds(names, _provider_names(args))
     if args.json:
-        print(json.dumps({k: [{"version": b.version, "android": b.android, "date": str(b.date or ""),
+        out = {k: [{"version": b.version, "android": b.android, "date": str(b.date or ""),
                                "variant": b.variant, "file": b.main.filename, "url": b.main.url,
                                "size": b.main.size, "hashes": b.main.hashes, "info": b.info_url}
-                              for b in v] for k, v in results.items()}, indent=2))
+                    for b in v] for k, v in results.items()}
+        if info:
+            from dataclasses import asdict
+            out = {"device": asdict(info), "builds": out}
+        print(json.dumps(out, indent=2))
         return 0 if results else 1
     for project, builds in results.items():
         b = builds[0]
@@ -111,12 +145,16 @@ def cmd_find(args) -> int:
         android = f" · Android {b.android}" if b.android else ""
         date = f" · {b.date}" if b.date else ""
         size = f" · {b.main.size / 2**30:.2f} GiB" if b.main.size else ""
-        print(f"{project:<12} {kind:<8} {b.version}{android}{date}{size}{stale}")
-        print(f"{'':<21} {b.main.filename}")
+        variant = f" · {b.variant}" if b.variant and b.kind != "recovery" and "(" in b.variant else ""
+        print(f"{project:<19} {kind:<8} {b.version}{android}{date}{size}{variant}{stale}")
+        pad = " " * 28
+        print(f"{pad}{b.main.filename}")
+        if b.notes:
+            print(f"{pad}note: {b.notes}")
         if b.info_url:
-            print(f"{'':<21} {b.info_url}")
+            print(f"{pad}{b.info_url}")
         if len(builds) > 1:
-            print(f"{'':<21} (+{len(builds) - 1} older/other variants: --json)")
+            print(f"{pad}(+{len(builds) - 1} older/other variants: --json)")
     for e in errors:
         print(f"! {e}", file=sys.stderr)
     if not results:
@@ -327,6 +365,7 @@ def main(argv=None) -> int:
     f.add_argument("codename", nargs="*", help="device codename(s); default: the connected phone")
     f.add_argument("--project", action="append", help="limit to a project (repeatable)")
     f.add_argument("--json", action="store_true")
+    f.add_argument("--no-info", action="store_true", help="skip the device/market-name lookup")
     f.set_defaults(func=cmd_find)
     dl = sub.add_parser("download", help="download and verify the newest build from one project")
     dl.add_argument("codename", nargs="*")

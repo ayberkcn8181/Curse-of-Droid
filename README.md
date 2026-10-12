@@ -7,7 +7,7 @@ recovery (TWRP, OrangeFox, LineageOS Recovery), verifies the downloads and flash
 destructive step. If no build exists it can, with your permission, build one locally.
 
 **Status: early development — milestones 1–5** (tool setup, USB drivers/udev, device detection, build catalog,
-verified downloads, official bootloader unlock flows, recovery + sideload install with a command guard, desktop app). Tested on one real device so far; use `--dry-run` first.
+verified downloads from 12 ROM projects, official bootloader unlock flows, recovery + sideload install with a command guard, desktop app). Tested on one real device so far; use `--dry-run` first.
 See [DESIGN.md](DESIGN.md) for the plan and the deliberate limits (official unlock methods only, firmware
 partitions are never written).
 
@@ -46,8 +46,13 @@ erases data or writes the system asks you to type `yes`. Before anything runs, e
 guard: only known fastboot commands, writes only to OS/recovery partitions, wipes only of userdata/metadata/cache,
 never firmware partitions, never relocking. A ROM zip that names a different device is refused.
 
-Sources: LineageOS (download API), crDroid, Evolution X, DerpFest (their OTA JSON repos), PixelOS
-(official_devices API), TWRP (dl.twrp.me + published .sha256), OrangeFox (API v3).
+`find` first shows what the codename is: the phones sold under it (marketing names and model numbers from Google
+Play's device catalog — TVs, boxes and tablets that share a codename are left out, and only the phone's brand
+family is shown) and specs from the LineageOS wiki (SoC, RAM, screen, battery, how to reach recovery/fastboot).
+
+ROM sources: LineageOS, crDroid, Evolution X (all Android branches, vanilla builds too), PixelOS, DerpFest,
+Paranoid Android, RisingOS, Project Infinity-X, AxionOS, VoltageOS, YAAP, GrapheneOS (Pixels; installed with its
+own web installer). Recoveries: TWRP (published .sha256), OrangeFox. GSIs: TrebleDroid.
 
 Detection is read-only. Serial numbers are shortened in the output unless `--show-serial` is given.
 

@@ -69,6 +69,23 @@ def fetch_text(url: str, cache: bool = True, timeout: float = 30) -> str:
     return text
 
 
+def fetch_bytes(url: str, cache_days: float = 1, timeout: float = 120) -> bytes:
+    """GET a (larger) binary resource, cached on disk for cache_days."""
+    path = data_dir() / "cache" / (hashlib.sha256(url.encode()).hexdigest() + ".bin")
+    if path.is_file() and time.time() - path.stat().st_mtime < cache_days * 86400:
+        return path.read_bytes()
+    try:
+        with urlopen(_request(url), timeout) as resp:
+            data = resp.read()
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise NotFound(url) from None
+        raise
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    return data
+
+
 def fetch_json(url: str, cache: bool = True):
     return json.loads(fetch_text(url, cache))
 

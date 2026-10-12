@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "curseofdroid"
-version = "0.1.0a3"
+version = "0.1.0a4"
 description = "Install custom ROMs and recoveries on Android phones: detect, unlock (officially), find, verify, flash."
 readme = "README.md"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.10"
-dependencies = ["certifi"]
+dependencies = ["certifi", "PyYAML>=6"]
 
 [project.optional-dependencies]
 gui = ["PySide6>=6.6"]

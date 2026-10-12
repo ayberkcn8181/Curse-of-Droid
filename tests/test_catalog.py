@@ -139,3 +139,65 @@ def test_evolutionx_branch_order_from_api():
     names = ["bka", "bka-vanilla", "cnb", "cnb-vanilla", "udc", "vic"]
     p = EvolutionX(fetcher({api: [{"name": n} for n in names]}))
     assert p.branches() == ["cnb", "bka", "vic", "udc"]
+
+
+PLAY = ('Retail Branding,Marketing Name,Device,Model\n'
+        '"Redmi","Redmi Note 7","lavender","Redmi Note 7"\n'
+        '"Redmi","Redmi  Note  7","lavender","Redmi Note 7"\n'
+        '"Blaupunkt","BLAUPUNKT","lavender","4K SMART TV"\n'
+        '"FPD","FPD","lavender","EcoTV Plus C"\n'
+        '"ZTE","Z717VL","lavender","Z717VL"\n'
+        '"Huawei","HUAWEI Y6 2018","HWATU-QG","ATU-L21"\n'
+        '"Huawei","HUAWEI Y6 Prime 2018","HWATU-QG","ATU-L31"\n'
+        '"Samsung","Galaxy Tab A","gta","SM-T500"\n').encode("utf-16")
+
+
+def test_market_names_only_phones_of_the_right_brand():
+    from curseofdroid.catalog.deviceinfo import market_names, play_rows
+    fetch = lambda url, cache_days=1: PLAY  # noqa: E731
+    rows = play_rows("lavender", fetch)
+    names = market_names(rows, vendor="Xiaomi")
+    assert [(m.brand, m.name, m.models) for m in names] == [("Redmi", "Redmi Note 7", ["Redmi Note 7"])]
+    # without a known vendor TVs are still dropped, other phones stay
+    assert {m.brand for m in market_names(rows)} == {"Redmi", "ZTE"}
+    assert market_names(play_rows("gta", fetch)) == []  # tablet
+
+
+def test_play_lookup_by_model_number():
+    from curseofdroid.catalog.deviceinfo import market_names, play_rows
+    rows = play_rows("atu_l21", lambda url, cache_days=1: PLAY, models=["ATU-L21"])
+    assert [m.name for m in market_names(rows, "HUAWEI")] == ["HUAWEI Y6 2018", "HUAWEI Y6 Prime 2018"]
+
+
+def test_wiki_variants_and_specs():
+    from curseofdroid.catalog.deviceinfo import LINEAGE_WIKI, device_info
+    pages = {LINEAGE_WIKI.format(c="marble_variant1"): "vendor: Xiaomi\nname: POCO F5 (Global)\nmodels: [A]\n"
+                                                       "soc: SD 7+ Gen 2\ncpu_cores: '8'\ncpu_freq: 3 GHz\n"
+                                                       "screen: {size: 6.67, resolution: '1080x2400'}\n"
+                                                       "recovery_boot: hold <kbd>Volume Up</kbd>\n",
+             LINEAGE_WIKI.format(c="marble_variant2"): "vendor: Xiaomi\nname: Redmi Note 12 Turbo\nmodels: [B]\n"}
+    info = device_info("marble", play_fetch=lambda url, cache_days=1: PLAY, wiki_fetch=fetcher(pages))
+    assert info.name == "POCO F5 (Global) / Redmi Note 12 Turbo" and info.models == ["A", "B"]
+    assert info.specs["CPU"] == "8 cores (3 GHz)" and info.specs["Recovery mode"] == "hold Volume Up"
+    assert info.specs["Screen"].startswith('6.67"')
+
+
+def test_new_rom_providers():
+    from curseofdroid.catalog.providers import GrapheneOS, ParanoidAndroid, RisingOS
+    pa = fetcher({"https://api.paranoidandroid.co/updates/alioth": {"updates": [
+        {"date": "2024-07-08", "datetime": "1720000000", "filename": "old.zip", "url": "u1", "size": "5",
+         "recovery_sha256": "1" * 64, "version": "Uvite", "version_code": "6", "android_version": "14"},
+        {"date": "2024-08-11", "datetime": "1723389364", "filename": "new.zip", "url": "u2", "size": "7",
+         "recovery_sha256": "2" * 64, "fastboot": "https://b/new-image.zip", "fastboot_sha256": "3" * 64,
+         "version": "Uvite", "version_code": "7", "android_version": "14", "build_type": "Beta"}]}})
+    b = ParanoidAndroid(pa).builds("alioth")
+    assert b[0].main.filename == "new.zip" and b[0].main.size == 7 and len(b[0].artifacts) == 2
+    base = "https://raw.githubusercontent.com/RisingOS-Revived/official_devices/fifteen/OTA/device"
+    one = {"response": [{"filename": "r.zip", "download": "d", "timestamp": 1, "sha256": "4" * 64, "size": 1,
+                         "version": "8"}]}
+    r = RisingOS(fetcher({f"{base}/CORE/Pong.json": one})).builds("Pong")
+    assert [x.variant for x in r] == ["vanilla (no Google apps)"]
+    g = GrapheneOS(fetcher({"https://releases.grapheneos.org/oriole-stable": "2026100600 1791330262 oriole stable\n"}))
+    [gb] = g.builds("oriole")
+    assert gb.main.url.endswith("oriole-install-2026100600.zip") and "web installer" in gb.notes
+    assert g.builds("lavender") == []

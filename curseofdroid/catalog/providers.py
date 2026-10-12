@@ -198,7 +198,117 @@ class OrangeFox(Provider):
         return out
 
 
-ALL_PROVIDERS = [LineageOS, CrDroid, EvolutionX, PixelOS, DerpFest, TWRP, OrangeFox]
+class ParanoidAndroid(Provider):
+    name = "Paranoid Android"
+    homepage = "https://paranoidandroid.co"
+
+    def builds(self, codename):
+        data = self._try(f"https://api.paranoidandroid.co/updates/{codename}")
+        out = []
+        for u in (data or {}).get("updates", []):
+            size = int(u["size"]) if str(u.get("size", "")).isdigit() else None
+            arts = [Artifact(u["filename"], u["url"], size, hashes_from(sha256=u.get("recovery_sha256")))]
+            if u.get("fastboot"):  # fastboot image package, for devices whose instructions use it
+                arts.append(Artifact(u["fastboot"].rsplit("/", 1)[-1], u["fastboot"], None,
+                                     hashes_from(sha256=u.get("fastboot_sha256"))))
+            out.append(Build(self.name, "rom", codename, f"{u.get('version', '')} {u.get('version_code', '')}".strip(),
+                             from_timestamp(u.get("datetime")), arts, android=str(u.get("android_version", "")),
+                             variant=u.get("build_type", ""), info_url=f"{self.homepage}/{codename}"))
+        out.sort(key=lambda b: b.date or dt.date.min, reverse=True)
+        return out
+
+
+class RisingOS(_OtaJson):
+    name = "RisingOS"
+    homepage = "https://risingosrevived.tech"
+    BASE = f"{RAW}/RisingOS-Revived/official_devices/fifteen/OTA/device"
+
+    def builds(self, codename):
+        out = []
+        for flavour, label in (("GAPPS", "with Google apps"), ("CORE", "vanilla (no Google apps)"),
+                               ("MICROG", "with microG")):
+            for b in self._parse(self._try(f"{self.BASE}/{flavour}/{codename}.json"), codename):
+                b.variant = label
+                out.append(b)
+        return out
+
+
+class InfinityX(_OtaJson):
+    name = "Project Infinity-X"
+    homepage = "https://projectinfinity-x.com"
+    REPO = "ProjectInfinity-X/official_devices"
+
+    def builds(self, codename):
+        for android in ("17", "16", "15", "14"):
+            out = []
+            for flavour, label in (("gapps", "with Google apps"), ("vanilla", "vanilla (no Google apps)")):
+                for b in self._parse(self._try(f"{RAW}/{self.REPO}/{android}/{flavour}/{codename}.json"),
+                                     codename, android):
+                    b.variant = label
+                    out.append(b)
+            if out:
+                return out
+        return []
+
+
+class AxionOS(_OtaJson):
+    name = "AxionOS"
+    homepage = "https://axionos.org"
+    BASE = f"{RAW}/AxionAOSP/official_devices/main/OTA"
+
+    def builds(self, codename):
+        out = []
+        for flavour, label in (("GMS", "with Google apps"), ("VANILLA", "vanilla (no Google apps)")):
+            for b in self._parse(self._try(f"{self.BASE}/{flavour}/{codename}.json"), codename):
+                b.variant = label
+                out.append(b)
+        return out
+
+
+class VoltageOS(_OtaJson):
+    name = "VoltageOS"
+    homepage = "https://voltageos.com"
+    REPO = "VoltageOS/android_vendor_voltageota"
+
+    def builds(self, codename):
+        for android in ("17", "16", "15", "14"):
+            # old device files are carried over into newer branches, so the branch isn't the Android version
+            if data := self._try(f"{RAW}/{self.REPO}/{android}/{codename}.json"):
+                return self._parse(data, codename)
+        return []
+
+
+class YAAP(_OtaJson):
+    name = "YAAP"
+    homepage = "https://yaap.github.io"
+
+    def builds(self, codename):
+        return self._parse(self._try(f"{RAW}/yaap/ota-info/full-signed/{codename}/{codename}.json"), codename)
+
+
+class GrapheneOS(Provider):
+    """Pixels only. GrapheneOS is installed with its own web installer (or CLI) from factory images, not through a
+    custom recovery; the build is listed so the user sees it, with the official install guide."""
+    name = "GrapheneOS"
+    homepage = "https://grapheneos.org"
+
+    def builds(self, codename):
+        try:
+            text = self.fetch(f"https://releases.grapheneos.org/{codename}-stable")
+        except NotFound:
+            return []
+        parts = text.split()
+        if len(parts) < 2 or not parts[0].isdigit():
+            return []
+        version, ts = parts[0], parts[1]
+        url = f"https://releases.grapheneos.org/{codename}-install-{version}.zip"
+        return [Build(self.name, "rom", codename, version, from_timestamp(ts), [Artifact(url.rsplit("/", 1)[-1], url)],
+                      variant="factory images", info_url="https://grapheneos.org/install/web",
+                      notes="installed with GrapheneOS's own web installer, not through a custom recovery")]
+
+
+ALL_PROVIDERS = [LineageOS, CrDroid, EvolutionX, PixelOS, DerpFest, ParanoidAndroid, RisingOS, InfinityX,
+                 AxionOS, VoltageOS, YAAP, GrapheneOS, TWRP, OrangeFox]
 
 
 def find_builds(codenames: list[str], providers=None, fetch=None) -> tuple[dict[str, list[Build]], list[str]]:
