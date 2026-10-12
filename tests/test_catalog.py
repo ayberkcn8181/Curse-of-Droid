@@ -93,3 +93,23 @@ def test_find_builds_tries_aliases_and_isolates_errors():
     results, errors = find_builds(["alias", "real"], [Broken, LineageOS], fetch=f)
     assert list(results) == ["LineageOS"] and results["LineageOS"][0].codename == "real"
     assert errors and "Broken" in errors[0]
+
+
+def test_gsi_fit_and_asset_selection():
+    from pathlib import Path
+
+    from curseofdroid.catalog.gsi import gsi_fit, trebledroid_builds
+    from curseofdroid.device.profile import from_props
+    from curseofdroid.transport.adb import parse_getprop
+    fix = Path(__file__).parent / "fixtures"
+    atu = from_props(parse_getprop((fix / "huawei_atu_l21_lineage17_getprop.txt").read_text()))
+    assert not gsi_fit(atu).ok and "system-as-root" in gsi_fit(atu).reasons[0]
+    oppo = from_props(parse_getprop((fix / "oppo_cph2801_android16_getprop.txt").read_text()))
+    releases = [{"tag_name": "ci-2", "published_at": "2025-06-17T00:00:00Z", "html_url": "u", "assets": [
+        {"name": "system-td-arm64-vanilla-old.img.xz", "browser_download_url": "o", "size": 2},
+        {"name": "system-td-arm32_binder64-vanilla.img.xz", "browser_download_url": "a32", "size": 3},
+        {"name": "system-td-arm64-vanilla.img.xz", "browser_download_url": "n", "size": 1},
+        {"name": "manifest.xml", "browser_download_url": "m", "size": 1}]}]
+    builds = trebledroid_builds(oppo, fetch=lambda url: releases)
+    assert [b.main.url for b in builds] == ["n", "o"]  # regular first, arm64 only
+    assert "-old" in builds[1].variant

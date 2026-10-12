@@ -17,7 +17,8 @@ from ..catalog.providers import TWRP, find_builds, is_stale
 from ..device.detect import Detected, detect
 from ..flash.executor import Executor, StepFailed
 from ..flash.package import inspect as inspect_package
-from ..flash.planner import InstallRequest, PlanError, plan_sideload_install
+from ..catalog.gsi import trebledroid_builds, unpack_xz
+from ..flash.planner import InstallRequest, PlanError, plan_gsi_install, plan_sideload_install
 from ..platform import drivers
 from ..platform.net import download
 from ..platform.paths import downloads_dir
@@ -205,7 +206,19 @@ class MainWindow(QMainWindow):
         if not names:
             return self.fail("Enter a codename or find the phone first.")
         self.log(f"Searching for {', '.join(names)} …")
-        start(Job(lambda p: find_builds(names), on_done=self.show_builds, on_failed=self.fail))
+        profile = self.device.profile if self.device and not self.codename_edit.text().strip() else None
+
+        def work(_p):
+            results, errors = find_builds(names)
+            if profile:  # GSIs depend on the connected phone's Treble/ABI/layout, not on a codename
+                try:
+                    if gsi := trebledroid_builds(profile):
+                        results["TrebleDroid GSI"] = gsi
+                except Exception as e:
+                    errors.append(f"TrebleDroid: {e}")
+            return results, errors
+
+        start(Job(work, on_done=self.show_builds, on_failed=self.fail))
 
     def show_builds(self, result):
         results, errors = result
@@ -234,8 +247,9 @@ class MainWindow(QMainWindow):
         def work(progress):
             if b.project == "TWRP":
                 TWRP().fill_hash(b)
-            return download(b.main.url, dest, size=b.main.size, hashes=b.main.hashes, headers=b.main.headers,
+            path = download(b.main.url, dest, size=b.main.size, hashes=b.main.hashes, headers=b.main.headers,
                             progress=progress)
+            return unpack_xz(path) if path.name.endswith(".img.xz") else path
 
         def done(path):
             self.dl_btn.setEnabled(True)
@@ -254,6 +268,7 @@ class MainWindow(QMainWindow):
     # ---- page 4: install ----------------------------------------------------------------------------------------
     def _install_page(self) -> QWidget:
         self.rom_edit, self.recovery_edit = QLineEdit(), QLineEdit()
+        self.rom_edit.setPlaceholderText("ROM zip, or a GSI system image (.img)")
         self.extras_edit = QLineEdit()
         self.extras_edit.setPlaceholderText("optional: GApps/other zips, separated by ;")
         self.recovery_name = QComboBox()
@@ -262,7 +277,7 @@ class MainWindow(QMainWindow):
         self.flash_rec = QCheckBox("Write the recovery to the phone (default: start it once from the computer)")
         self.keep_data = QCheckBox("Keep data (only for an update of the same ROM)")
         form = QFormLayout()
-        for label, edit, filt in (("ROM zip", self.rom_edit, "Zip (*.zip)"),
+        for label, edit, filt in (("ROM", self.rom_edit, "ROM zip or GSI image (*.zip *.img)"),
                                   ("Recovery image", self.recovery_edit, "Image (*.img)")):
             row = QHBoxLayout()
             row.addWidget(edit, 1)
@@ -293,7 +308,17 @@ class MainWindow(QMainWindow):
         if not (self.device and self.device.profile):
             return self.fail("Find the phone first.")
         if not self.rom_edit.text():
-            return self.fail("Choose a ROM zip.")
+            return self.fail("Choose a ROM zip or GSI image.")
+        if self.rom_edit.text().endswith(".img"):
+            try:
+                self.plan = plan_gsi_install(self.device.profile, Path(self.rom_edit.text()),
+                                             wipe_data=not self.keep_data.isChecked())
+            except PlanError as e:
+                self.plan_view.setPlainText(f"Can't install: {e}")
+                return
+            self.plan_view.setPlainText(self.plan.render())
+            self.install_btn.setEnabled(True)
+            return
         req = InstallRequest(
             inspect_package(Path(self.rom_edit.text())),
             recovery=Path(self.recovery_edit.text()) if self.recovery_edit.text() else None,

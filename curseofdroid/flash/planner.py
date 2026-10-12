@@ -99,3 +99,43 @@ def plan_sideload_install(profile: DeviceProfile, req: InstallRequest) -> Plan:
                       [Command("adb", ["reboot"])], wait_for="android", wait_timeout=1200))
     return Plan(f"Install {req.rom.path.name} on {profile.brand} {profile.model} ({profile.codename})".strip(),
                 steps, warnings)
+
+
+def plan_gsi_install(profile: DeviceProfile, image: Path, wipe_data: bool = True) -> Plan:
+    """Flash a GSI system image the way Android's GSI documentation describes it.
+
+    Dynamic partitions: system is a logical partition, written from fastbootd. Legacy devices: the real
+    system partition, written from the bootloader. vbmeta is not touched: phones that need verification
+    disabled for a GSI need the ROM-specific vbmeta step from their own instructions.
+    """
+    problems = []
+    if profile.bootloader_unlocked == "no":
+        problems.append("the bootloader is locked: see `curseofdroid unlock` for this phone")
+    if profile.battery_percent is not None and profile.battery_percent < MIN_BATTERY:
+        problems.append(f"battery at {profile.battery_percent}%: charge to at least {MIN_BATTERY}%")
+    if image.suffix != ".img":
+        problems.append(f"{image.name}: unpack it first (raw .img expected)")
+    if problems:
+        raise PlanError("; ".join(problems))
+    dynamic = profile.dynamic_partitions == "yes"
+    steps: list[Step] = []
+    if profile.mode in ("android", "recovery", "unknown"):
+        steps.append(Step("Reboot to fastboot", "Nothing is changed.", "reboot",
+                          [Command("adb", ["reboot", "bootloader"])], wait_for="fastboot"))
+    if dynamic:
+        steps.append(Step("Switch to fastbootd", "System lives inside the 'super' partition on this phone; "
+                          "it can only be written from the userspace fastboot (fastbootd).", "reboot",
+                          [Command("fastboot", ["reboot", "fastboot"])], wait_for="fastbootd"))
+    if wipe_data:
+        steps.append(Step("Erase user data", "A new system needs clean data: apps, accounts and internal "
+                          "storage are deleted.", "data-loss", [Command("fastboot", ["-w"])], fastbootd=dynamic))
+    steps.append(Step(f"Write {image.name} to system", "Replaces the phone's system with the GSI; vendor, boot "
+                      "and firmware stay as they are.", "system-write",
+                      [Command("fastboot", ["flash", "system", str(image)], timeout=1800, logical_ok=not dynamic)],
+                      fastbootd=dynamic))
+    steps.append(Step("Restart", "The first boot can take several minutes.", "reboot",
+                      [Command("fastboot", ["reboot"])], wait_for="android", wait_timeout=1200))
+    warnings = ["A GSI runs on this phone's own vendor software; some hardware may not work.",
+                "If the phone doesn't boot (returns to the bootloader), it may need verified boot disabled with "
+                "its own vbmeta step — follow the device's GSI instructions; this tool doesn't do that by default."]
+    return Plan(f"Install {image.name} on {profile.brand} {profile.model} ({profile.codename})", steps, warnings)

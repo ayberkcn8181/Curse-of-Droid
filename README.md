@@ -51,6 +51,18 @@ Sources: LineageOS (download API), crDroid, Evolution X, DerpFest (their OTA JSO
 
 Detection is read-only. Serial numbers are shortened in the output unless `--show-serial` is given.
 
+## GSIs (Treble phones without an official ROM)
+
+```bash
+curseofdroid gsi                    # does a GSI fit this phone? (Treble, CPU, system-as-root, vendor age)
+curseofdroid gsi --download         # newest TrebleDroid build for the phone's CPU, unpacked to .img
+curseofdroid gsi --install system-td-arm64-vanilla.img --dry-run
+```
+
+On phones with dynamic partitions the system image is written from fastbootd. vbmeta is not touched by default;
+phones that need verified boot disabled for a GSI need their own device-specific step. TrebleDroid publishes no
+checksums, so only the download size can be verified.
+
 ## Desktop app
 
 ```bash

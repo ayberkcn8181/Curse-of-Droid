@@ -189,3 +189,26 @@ def test_guard_unlock_only_when_allowed():
         check_command("fastboot", ["flashing", "lock"], allow_unlock=True)
     check_command("fastboot", ["--set-active=b"])
     check_command("fastboot", ["--slot=all", "flash", "boot", "b.img"])
+
+
+def test_gsi_plan_dynamic_uses_fastbootd(tmp_path):
+    from curseofdroid.flash.planner import plan_gsi_install
+    img = tmp_path / "system.img"
+    img.write_bytes(b"x")
+    p = profile(dynamic_partitions="yes", mode="android")
+    plan = plan_gsi_install(p, img)
+    validate(plan)
+    flash = [s for s in plan.steps if any(c.args[:2] == ["flash", "system"] for c in s.commands)][0]
+    assert flash.fastbootd and any(s.wait_for == "fastbootd" for s in plan.steps)
+    assert not any("vbmeta" in " ".join(c.args) for s in plan.steps for c in s.commands)
+
+
+def test_gsi_plan_legacy_writes_real_system(tmp_path):
+    from curseofdroid.flash.planner import plan_gsi_install
+    img = tmp_path / "system.img"
+    img.write_bytes(b"x")
+    plan = plan_gsi_install(profile(dynamic_partitions="no", mode="fastboot"), img)
+    validate(plan)
+    assert not any(s.wait_for == "fastbootd" for s in plan.steps)
+    with pytest.raises(PlanError, match="unpack"):
+        plan_gsi_install(profile(), tmp_path / "system.img.xz")

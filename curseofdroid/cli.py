@@ -1,4 +1,4 @@
-"""Command line interface: tools, drivers, detect, find, download, unlock, install."""
+"""Command line interface: tools, drivers, detect, find, download, unlock, install, gsi."""
 
 from __future__ import annotations
 
@@ -13,7 +13,8 @@ from pathlib import Path
 from .device.detect import detect
 from .flash.executor import Executor, StepFailed
 from .flash.package import inspect as inspect_package
-from .flash.planner import InstallRequest, PlanError, plan_sideload_install
+from .catalog.gsi import gsi_fit, trebledroid_builds, unpack_xz
+from .flash.planner import InstallRequest, PlanError, plan_gsi_install, plan_sideload_install
 from .platform import drivers
 from .vendors import vendor_for
 from .platform.net import VerificationError, download
@@ -248,6 +249,53 @@ def cmd_unlock(args) -> int:
     return 0
 
 
+def cmd_gsi(args) -> int:
+    tools = _need_tools()
+    dev = _one_device(tools)
+    p = dev.profile
+    if args.install:
+        image = Path(args.install)
+        if image.name.endswith(".xz"):
+            print(f"Unpacking {image.name} …")
+            image = unpack_xz(image)
+        try:
+            plan = plan_gsi_install(p, image, wipe_data=not args.keep_data)
+        except PlanError as e:
+            print(f"Can't install: {e}")
+            return 1
+        print(plan.render())
+        if args.dry_run:
+            print("\n(dry run: nothing was done)")
+            return 0
+        if input("\nStart? Type 'yes': ").strip().lower() != "yes":
+            return 1
+        try:
+            Executor(tools.adb, tools.fastboot, dev.serial, ConsoleUI()).run(plan)
+        except StepFailed as e:
+            print(f"\nStopped: {e}")
+            return 1
+        print("\nDone.")
+        return 0
+    fit = gsi_fit(p)
+    print(f"{p.market_name or p.brand + ' ' + p.model}: GSI {'possible' if fit.ok else 'not possible'}"
+          + (f" ({fit.arch})" if fit.arch else ""))
+    for r in fit.reasons:
+        print(f"  - {r}")
+    if not fit.ok:
+        return 1
+    builds = trebledroid_builds(p)
+    for b in builds:
+        print(f"  {b.project} {b.version} · {b.variant} · {b.main.size / 2**30:.2f} GiB · {b.main.filename}")
+    if args.download and builds:
+        b = builds[1] if args.old and len(builds) > 1 else builds[0]
+        dest = downloads_dir() / "gsi" / b.main.filename
+        print(f"Downloading {b.main.filename} (TrebleDroid publishes no checksum; size is checked) …")
+        download(b.main.url, dest, size=b.main.size,
+                 progress=lambda d, t: print(f"\r  {d * 100 // t if t else 0:3d}%", end="", flush=True))
+        print(f"\nUnpacking … {unpack_xz(dest)}")
+    return 0
+
+
 def cmd_drivers(args) -> int:
     st = drivers.status()
     print(f"{st.platform}: {st.detail}")
@@ -297,6 +345,13 @@ def main(argv=None) -> int:
     u = sub.add_parser("unlock", help="check the bootloader and unlock it with the vendor's official method")
     u.add_argument("--dry-run", action="store_true")
     u.set_defaults(func=cmd_unlock)
+    g = sub.add_parser("gsi", help="Generic System Images for Treble phones without an official ROM")
+    g.add_argument("--download", action="store_true", help="download and unpack the newest matching GSI")
+    g.add_argument("--old", action="store_true", help="the alternative '-old' build instead")
+    g.add_argument("--install", metavar="IMAGE", help="flash a GSI image (.img or .img.xz)")
+    g.add_argument("--keep-data", action="store_true")
+    g.add_argument("--dry-run", action="store_true")
+    g.set_defaults(func=cmd_gsi)
     dr = sub.add_parser("drivers", help="USB access: udev rules (Linux) or Google's USB driver (Windows)")
     dr.add_argument("action", nargs="?", choices=["status", "install"], default="status")
     dr.set_defaults(func=cmd_drivers)
