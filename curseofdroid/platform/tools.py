@@ -1,4 +1,4 @@
-"""Locate adb/fastboot, or install Google's platform-tools into romtool's data directory."""
+"""Locate adb/fastboot, or install Google's platform-tools into curseofdroid's data directory."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def _exe(name: str) -> str:
 class Tools:
     adb: Path | None
     fastboot: Path | None
-    source: str  # "romtool", "PATH" or "missing"
+    source: str  # "curseofdroid", "PATH" or "missing"
 
     @property
     def complete(self) -> bool:
@@ -37,11 +37,11 @@ class Tools:
 
 
 def find_tools() -> Tools:
-    """Prefer romtool's own platform-tools (known version), then whatever is on PATH."""
+    """Prefer curseofdroid's own platform-tools (known version), then whatever is on PATH."""
     own = tools_dir() / "platform-tools"
     adb, fastboot = own / _exe("adb"), own / _exe("fastboot")
     if adb.is_file() and fastboot.is_file():
-        return Tools(adb, fastboot, "romtool")
+        return Tools(adb, fastboot, "curseofdroid")
     on_path = shutil.which("adb"), shutil.which("fastboot")
     if all(on_path):
         return Tools(Path(on_path[0]), Path(on_path[1]), "PATH")

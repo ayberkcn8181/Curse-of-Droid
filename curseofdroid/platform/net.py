@@ -13,7 +13,7 @@ from typing import Callable
 from .. import __version__
 from .paths import data_dir
 
-USER_AGENT = f"romtool/{__version__} (+https://github.com/)"
+USER_AGENT = f"curseofdroid/{__version__} (+https://github.com/)"
 CACHE_SECONDS = 24 * 3600
 
 

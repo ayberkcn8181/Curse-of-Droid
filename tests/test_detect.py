@@ -1,5 +1,5 @@
-from romtool.device.detect import detect
-from romtool.transport.base import Result
+from curseofdroid.device.detect import detect
+from curseofdroid.transport.base import Result
 
 
 def fake_runner(responses):

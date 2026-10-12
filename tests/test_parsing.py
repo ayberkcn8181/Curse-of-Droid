@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from romtool.device.profile import from_fastboot, from_props
-from romtool.transport.adb import parse_devices, parse_getprop
-from romtool.transport.fastboot import parse_devices as fb_devices, parse_getvar_all
+from curseofdroid.device.profile import from_fastboot, from_props
+from curseofdroid.transport.adb import parse_devices, parse_getprop
+from curseofdroid.transport.fastboot import parse_devices as fb_devices, parse_getvar_all
 
 FIX = Path(__file__).parent / "fixtures"
 

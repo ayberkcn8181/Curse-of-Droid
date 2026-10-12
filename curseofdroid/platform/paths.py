@@ -6,12 +6,12 @@ import os
 import sys
 from pathlib import Path
 
-APP = "romtool"
+APP = "curseofdroid"
 
 
 def data_dir() -> Path:
-    """Where romtool keeps platform-tools, downloads and caches. ROMTOOL_HOME overrides it."""
-    if env := os.environ.get("ROMTOOL_HOME"):
+    """Where curseofdroid keeps platform-tools, downloads and caches. CURSEOFDROID_HOME overrides it."""
+    if env := os.environ.get("CURSEOFDROID_HOME"):
         return Path(env)
     if sys.platform == "win32":
         base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))

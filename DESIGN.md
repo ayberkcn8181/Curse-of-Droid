@@ -1,11 +1,11 @@
-# romtool — design (working name)
+# Curse of Droid — design
 
 A cross-platform desktop app (GUI + CLI) that takes an Android phone from stock to a custom ROM and custom
 recovery: detect the device, install drivers/tools, check and (through the vendor's official procedure) unlock the
 bootloader, find a matching ROM and recovery, download and verify them, flash them, and — if nothing prebuilt
 exists and the user agrees — build one locally.
 
-Status: design draft (2026-10-12). Nothing is implemented yet.
+Status (2026-10-12): milestones 1–2 implemented (detection, catalog, verified downloads); flashing not yet.
 
 ## 1. Goals and non-goals
 
@@ -45,7 +45,7 @@ Status: design draft (2026-10-12). Nothing is implemented yet.
 
 - **Language:** Python 3.11+. Packaged per OS with PyInstaller (single installer/AppImage/.app), plus `pipx install`.
 - **GUI:** PySide6 (LGPL) — native look on all three platforms, threads for long operations.
-- **CLI:** same core; `romtool detect`, `romtool unlock`, `romtool find`, `romtool install`, `romtool build`.
+- **CLI:** same core; `curseofdroid detect`, `curseofdroid unlock`, `curseofdroid find`, `curseofdroid install`, `curseofdroid build`.
 - **Workflow engine:** every action is a `Step` with `check()` (already done?), `describe()` (plain-language text
   shown to the user), `risk` (none / data-loss / warranty / brick-risk), `run()`, `verify()`. Steps with risk need
   explicit consent; the GUI shows the exact commands that will run.
@@ -165,8 +165,8 @@ For devices with device trees but no recent build, or for a ROM the user wants t
 ## 10. Repository layout (planned)
 
 ```
-romtool/
-  romtool/
+curseofdroid/
+  curseofdroid/
     core/        workflow engine, steps, consent, logging
     platform/    tool bootstrap, drivers, udev, downloads
     transport/   adb, fastboot, heimdall wrappers
@@ -196,7 +196,7 @@ romtool/
 
 ## 12. Open questions
 
-- Project name and the new GitHub organization name (organizations are created on github.com by the user).
+- ~~Project name~~: Curse of Droid (repository `Curse-of-Droid`).
 - License: GPL-3.0 (compatible with PySide6 LGPL and Heimdall MIT) is the default proposal.
 - Xiaomi: which unlock client (official Windows tool vs. open-source client) — decide after reviewing licenses.
 - Test devices available besides ATU-L21.

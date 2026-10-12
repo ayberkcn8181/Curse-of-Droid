@@ -1,7 +1,7 @@
-# romtool (working name)
+# Curse of Droid
 
 Install custom ROMs and custom recoveries on Android phones — on Windows, Linux and macOS.
-romtool detects the phone, sets up adb/fastboot and drivers, checks the bootloader and unlocks it through the
+Curse of Droid detects the phone, sets up adb/fastboot and drivers, checks the bootloader and unlocks it through the
 vendor's official procedure, finds a matching ROM (LineageOS, crDroid, Evolution X, PixelOS, DerpFest, GSIs) and
 recovery (TWRP, OrangeFox, LineageOS Recovery), verifies the downloads and flashes them — asking before every
 destructive step. If no build exists it can, with your permission, build one locally.
@@ -15,11 +15,11 @@ partitions are never written).
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e .
-.venv/bin/romtool tools install   # downloads Google's platform-tools into romtool's data directory
-.venv/bin/romtool detect          # Android (USB debugging), recovery, fastboot or fastbootd
-.venv/bin/romtool detect --json
-.venv/bin/romtool find            # official builds for the connected phone (or: romtool find <codename>)
-.venv/bin/romtool download lavender --project TWRP   # newest build, size + checksum verified
+.venv/bin/curseofdroid tools install   # downloads Google's platform-tools into its data directory
+.venv/bin/curseofdroid detect          # Android (USB debugging), recovery, fastboot or fastbootd
+.venv/bin/curseofdroid detect --json
+.venv/bin/curseofdroid find            # official builds for the connected phone (or: curseofdroid find <codename>)
+.venv/bin/curseofdroid download lavender --project TWRP   # newest build, size + checksum verified
 ```
 
 Sources: LineageOS (download API), crDroid, Evolution X, DerpFest (their OTA JSON repos), PixelOS

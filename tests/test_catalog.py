@@ -1,8 +1,8 @@
 import json
 
-from romtool.catalog.base import hashes_from
-from romtool.catalog.providers import CrDroid, DerpFest, LineageOS, OrangeFox, PixelOS, TWRP, find_builds
-from romtool.platform.net import NotFound
+from curseofdroid.catalog.base import hashes_from
+from curseofdroid.catalog.providers import CrDroid, DerpFest, LineageOS, OrangeFox, PixelOS, TWRP, find_builds
+from curseofdroid.platform.net import NotFound
 
 
 def fetcher(pages: dict):

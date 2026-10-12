@@ -26,7 +26,7 @@ _LABELS = [
 def _need_tools():
     tools = find_tools()
     if not tools.complete:
-        sys.exit("adb/fastboot not found. Run `romtool tools install` to download Google's platform-tools.")
+        sys.exit("adb/fastboot not found. Run `curseofdroid tools install` to download Google's platform-tools.")
     return tools
 
 
@@ -72,7 +72,7 @@ def _codenames(args) -> list[str]:
     tools = _need_tools()
     found = [d for d in detect(tools.adb, tools.fastboot) if d.profile and d.profile.codenames]
     if not found:
-        sys.exit("No phone with a known codename connected; give the codename, e.g. `romtool find lavender`.")
+        sys.exit("No phone with a known codename connected; give the codename, e.g. `curseofdroid find lavender`.")
     names = found[0].profile.codenames
     print(f"Device: {found[0].profile.brand} {found[0].profile.model} ({', '.join(names)})\n")
     return names
@@ -147,13 +147,13 @@ def cmd_download(args) -> int:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="romtool", description=__doc__)
+    ap = argparse.ArgumentParser(prog="curseofdroid", description=__doc__)
     ap.add_argument("--version", action="version", version=__version__)
     sub = ap.add_subparsers(dest="cmd", required=True)
     t = sub.add_parser("tools", help="show or install adb/fastboot (Google platform-tools)")
     t.add_argument("action", nargs="?", choices=["status", "install"], default="status")
     t.set_defaults(func=cmd_tools)
-    d = sub.add_parser("detect", help="find connected phones and show what romtool knows about them")
+    d = sub.add_parser("detect", help="find connected phones and show what curseofdroid knows about them")
     d.add_argument("--json", action="store_true")
     d.add_argument("--show-serial", action="store_true", help="do not shorten serial numbers")
     d.set_defaults(func=cmd_detect)

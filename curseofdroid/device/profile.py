@@ -1,4 +1,4 @@
-"""DeviceProfile: what romtool knows about the connected phone, built from getprop or fastboot variables."""
+"""DeviceProfile: what curseofdroid knows about the connected phone, built from getprop or fastboot variables."""
 
 from __future__ import annotations
 
