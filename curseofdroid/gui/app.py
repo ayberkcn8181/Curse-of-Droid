@@ -269,6 +269,12 @@ class MainWindow(QMainWindow):
         if len(rows) != 1:
             return self.fail("Select one build.")
         b = self.builds[rows.pop()]
+        if not b.main.direct:
+            from PySide6.QtCore import QUrl
+            from PySide6.QtGui import QDesktopServices
+            self.log(f"{b.project}: no direct download — opening {b.main.url}")
+            QDesktopServices.openUrl(QUrl(b.main.url))
+            return
         dest = downloads_dir() / b.codename / b.main.filename
         self.progress.setVisible(True)
         self.progress.setValue(0)

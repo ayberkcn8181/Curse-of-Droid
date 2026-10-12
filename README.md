@@ -7,7 +7,7 @@ recovery (TWRP, OrangeFox, LineageOS Recovery), verifies the downloads and flash
 destructive step. If no build exists it can, with your permission, build one locally.
 
 **Status: early development — milestones 1–5** (tool setup, USB drivers/udev, device detection, build catalog,
-verified downloads from 12 ROM projects, official bootloader unlock flows, recovery + sideload install with a command guard, desktop app). Tested on one real device so far; use `--dry-run` first.
+verified downloads from 19 ROM projects, official bootloader unlock flows, recovery + sideload install with a command guard, desktop app). Tested on one real device so far; use `--dry-run` first.
 See [DESIGN.md](DESIGN.md) for the plan and the deliberate limits (official unlock methods only, firmware
 partitions are never written).
 
@@ -50,9 +50,12 @@ never firmware partitions, never relocking. A ROM zip that names a different dev
 Play's device catalog — TVs, boxes and tablets that share a codename are left out, and only the phone's brand
 family is shown) and specs from the LineageOS wiki (SoC, RAM, screen, battery, how to reach recovery/fastboot).
 
-ROM sources: LineageOS, crDroid, Evolution X (all Android branches, vanilla builds too), PixelOS, DerpFest,
-Paranoid Android, RisingOS, Project Infinity-X, AxionOS, VoltageOS, YAAP, GrapheneOS (Pixels; installed with its
-own web installer). Recoveries: TWRP (published .sha256), OrangeFox. GSIs: TrebleDroid.
+ROM sources (19): LineageOS, crDroid, Evolution X (all Android branches, vanilla builds too), PixelOS, DerpFest,
+Paranoid Android, RisingOS, Project Infinity-X, AxionOS, VoltageOS, YAAP, /e/OS (official, then community),
+iodéOS, GrapheneOS and CalyxOS (both listed with their own installers — not installed through a recovery),
+and the ended projects PixelExperience, ArrowOS, Havoc-OS (last builds, from their surviving mirrors, marked as
+ended) and Project Elixir (its device list only links to download pages). Recoveries: TWRP (published .sha256),
+OrangeFox. GSIs: TrebleDroid.
 
 Detection is read-only. Serial numbers are shortened in the output unless `--show-serial` is given.
 

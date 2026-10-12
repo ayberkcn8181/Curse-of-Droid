@@ -174,6 +174,9 @@ def cmd_download(args) -> int:
     if not builds:
         sys.exit(f"{p.name} has no build for this device.")
     b = builds[0]
+    if not b.main.direct:
+        print(f"{p.name} publishes no direct download for this device. Get it from: {b.main.url}")
+        return 1
     if isinstance(p, TWRP):
         p.fill_hash(b)
     dest = downloads_dir() / b.codename / b.main.filename

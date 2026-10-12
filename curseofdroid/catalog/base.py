@@ -18,6 +18,7 @@ class Artifact:
     size: int | None = None
     hashes: dict[str, str] = field(default_factory=dict)  # {"sha256": ..., "md5": ...}
     headers: dict[str, str] = field(default_factory=dict)  # e.g. TWRP needs a Referer
+    direct: bool = True  # False: url is the project's download page, not the file itself
 
 
 @dataclass

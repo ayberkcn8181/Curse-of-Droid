@@ -1,5 +1,7 @@
 import json
 
+import json
+
 from curseofdroid.catalog.base import hashes_from
 from curseofdroid.catalog.providers import CrDroid, DerpFest, LineageOS, OrangeFox, PixelOS, TWRP, find_builds
 from curseofdroid.platform.net import NotFound
@@ -201,3 +203,51 @@ def test_new_rom_providers():
     [gb] = g.builds("oriole")
     assert gb.main.url.endswith("oriole-install-2026100600.zip") and "web installer" in gb.notes
     assert g.builds("lavender") == []
+
+
+def test_ended_projects_use_live_mirrors_and_say_so():
+    from curseofdroid.catalog.providers import ENDED, ArrowOS, HavocOS, PixelExperience
+    raw = "https://raw.githubusercontent.com"
+    pe = PixelExperience(fetcher({f"{raw}/PixelExperience/official_devices/master/devices.json": [
+        {"codename": "lavender", "brand": "Xiaomi", "name": "Redmi Note 7",
+         "supported_versions": [{"version_code": "thirteen"}, {"version_code": "thirteen_plus"}]}]}))
+    calls = []
+    pe.fetch_live = lambda url: (calls.append(url), json.dumps(
+        {"datetime": 1706252520, "filename": "PE.zip", "id": "a" * 32, "size": 3, "url": "https://dl/x"}))[1]
+    [b] = pe.builds("lavender")
+    assert b.version == "13 Plus" and b.main.hashes == {"md5": "a" * 32} and b.notes == ENDED
+    assert calls[0].endswith("/lavender/thirteen_plus")  # newest version first, fetched without cache
+    arrow = ArrowOS(fetcher({f"{raw}/ArrowOS/arrow_ota/master/arrow-13.1_gapps_builds_official.json": {
+        "lavender": [{"filename": "Arrow-v13.1-lavender-OFFICIAL-20240204-GAPPS.zip", "date": "2024-02-04",
+                      "sha256": "b" * 64, "size": "5", "version": "v13.1"}]}}))
+    [a] = arrow.builds("lavender")
+    assert a.main.url == ("https://sourceforge.net/projects/arrow-os/files/arrow-13.1/official/lavender/"
+                          "Arrow-v13.1-lavender-OFFICIAL-20240204-GAPPS.zip/download")
+    assert a.main.size == 5 and a.android == "13"
+    havoc = HavocOS(fetcher({f"{raw}/Havoc-OS/OTA/thirteen/gapps/alioth.json": {
+        "filename": "Havoc.zip", "filehash": "c" * 32, "size": 1, "datetime": 1, "version": "6.0"}}))
+    [h] = havoc.builds("alioth")
+    assert h.main.url.startswith("https://sourceforge.net/projects/havoc-os/files/alioth/") and h.android == "13"
+
+
+def test_page_only_and_installer_projects():
+    from curseofdroid.catalog.providers import EOS, CalyxOS, IodeOS, ProjectElixir
+    el = ProjectElixir(fetcher({"https://projectelixiros.com/assets/json/download.json": [{"deviceDetails": [
+        {"codeName": "vince", "thirteenbuildVersion": "v3.3", "deviceStatus": "discontinued",
+         "downloadLink": "https://www.pling.com/p/1/"}]}]}))
+    [e] = el.builds("vince")
+    assert not e.main.direct and e.main.url == "https://www.pling.com/p/1/" and "discontinued" in e.notes
+    yml = ("stable:\n- name: Pixel 6\n  codename: oriole\n  version: 7.2.5.20\n  android: '16'\n"
+           "  factory_link: https://release.calyxos.org/factory/oriole-factory.zip\n  factory_sha256: " + "d" * 64 +
+           "\n  date: '2026-09-09'\n")
+    [c] = CalyxOS(fetcher({"https://raw.githubusercontent.com/CalyxOS/calyxos.org/main/pages/_data/downloads.yml":
+                           yml})).builds("oriole")
+    assert c.main.hashes == {"sha256": "d" * 64} and "device-flasher" in c.notes
+    eos = EOS(fetcher({"https://ota.ecloud.global/api/v1/FP5/official/1": {"response": [
+        {"datetime": 2, "filename": "e-new.zip", "url": "u2", "md5sum": "e" * 32, "version": "4.3",
+         "android_version": "15", "size": 1},
+        {"datetime": 1, "filename": "e-old.zip", "url": "u1", "md5sum": "f" * 32, "version": "4.2", "size": 1}]}}))
+    assert [b.main.filename for b in eos.builds("FP5")] == ["e-new.zip", "e-old.zip"]
+    io = IodeOS(fetcher({"https://ota.iode.tech/v6-release/FP5.json": {"response": [
+        {"datetime": 1, "filename": "iode.zip", "id": "9" * 64, "size": 1, "url": "u", "version": "7.9"}]}}))
+    assert io.builds("FP5")[0].main.hashes == {"sha256": "9" * 64}
