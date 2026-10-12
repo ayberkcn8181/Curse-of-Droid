@@ -1,0 +1,16 @@
+(bootloader) cpu-abi:arm64-v8a
+(bootloader) version-bootloader: b1c1-0.4-7617406
+(bootloader) product: oriole
+(bootloader) serialno: 1A2B3C4D5E6F
+(bootloader) unlocked: yes
+(bootloader) slot-count: 2
+(bootloader) current-slot: a
+(bootloader) is-userspace: no
+(bootloader) partition-size:boot_a: 0x4000000
+(bootloader) partition-type:boot_a: raw
+(bootloader) partition-size:super: 0x220000000
+(bootloader) has-slot:system: yes
+(bootloader) battery-level: 87%
+(bootloader) device-state:
+all:
+Finished. Total time: 0.112s
