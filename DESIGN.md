@@ -5,7 +5,7 @@ recovery: detect the device, install drivers/tools, check and (through the vendo
 bootloader, find a matching ROM and recovery, download and verify them, flash them, and — if nothing prebuilt
 exists and the user agrees — build one locally.
 
-Status (2026-10-12): milestones 1–2 implemented (detection, catalog, verified downloads); flashing not yet.
+Status (2026-10-12): milestones 1–3 implemented (detection, catalog, verified downloads, sideload install + guard).
 
 ## 1. Goals and non-goals
 

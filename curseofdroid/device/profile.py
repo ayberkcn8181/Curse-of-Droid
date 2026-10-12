@@ -85,18 +85,15 @@ def from_props(props: dict[str, str], mode: Mode = "android", serial: str = "") 
     """Build a profile from `getprop` (Android or a recovery such as TWRP)."""
     g = props.get
     sdk = g("ro.build.version.sdk")
-    locked = g("ro.boot.flash.locked")
-    vbstate = g("ro.boot.verifiedbootstate", "")
-    if locked is not None:
-        unlocked = {"yes": "no", "no": "yes", "unknown": "unknown"}[_yesno(locked)]
-    elif vbstate:
-        # green = stock and locked, yellow = locked with a custom key, orange = unlocked
-        unlocked = "yes" if vbstate == "orange" else "no"
-    elif g("ro.boot.vbmeta.device_state"):
-        unlocked = "yes" if g("ro.boot.vbmeta.device_state") == "unlocked" else "no"
+    unlocked = _unlocked_from_props(props)
+    # ro.boot.slot_suffix comes from the bootloader. ro.build.ab_update describes the *system image* and is
+    # "true" on A-only phones running an A/B-built GSI, so it is only a fallback.
+    if g("ro.boot.slot_suffix"):
+        ab = "yes"
+    elif g("ro.build.version.sdk"):  # full property set from a running OS/recovery: no slot suffix = A-only
+        ab = "no"
     else:
-        unlocked = "unknown"
-    ab = g("ro.build.ab_update")
+        ab = "unknown"
     return DeviceProfile(
         mode=mode,
         serial=serial or g("ro.serialno", ""),
@@ -113,8 +110,8 @@ def from_props(props: dict[str, str], mode: Mode = "android", serial: str = "") 
         abi=g("ro.product.cpu.abi", ""),
         bootloader_unlocked=unlocked,
         oem_unlock_allowed=_yesno(g("sys.oem_unlock_allowed")),
-        verified_boot_state=vbstate,
-        ab=_yesno(ab) if ab is not None else ("yes" if g("ro.boot.slot_suffix") else "unknown"),
+        verified_boot_state=g("ro.boot.verifiedbootstate", ""),
+        ab=ab,
         current_slot=(g("ro.boot.slot_suffix") or "").lstrip("_"),
         dynamic_partitions=_yesno(g("ro.boot.dynamic_partitions")),
         treble=_yesno(g("ro.treble.enabled")),
@@ -122,6 +119,22 @@ def from_props(props: dict[str, str], mode: Mode = "android", serial: str = "") 
         system_as_root=_yesno(g("ro.build.system_root_image")),
         sources=["getprop"],
     )
+
+
+def _unlocked_from_props(props: dict[str, str]) -> Tristate:
+    """Best guess from properties; fastboot (getvar unlocked / oem lock-state) is authoritative."""
+    g = props.get
+    # Huawei/Honor: the bootloader passes "locked"/"green" to the kernel even when unlocked; ro.userlock is right
+    if g("ro.userlock") in ("unlocked", "locked"):
+        return "yes" if g("ro.userlock") == "unlocked" else "no"
+    if g("ro.boot.vbmeta.device_state") in ("unlocked", "locked"):
+        return "yes" if g("ro.boot.vbmeta.device_state") == "unlocked" else "no"
+    if g("ro.boot.flash.locked") is not None:
+        return {"yes": "no", "no": "yes", "unknown": "unknown"}[_yesno(g("ro.boot.flash.locked"))]
+    vb = g("ro.boot.verifiedbootstate", "")
+    if vb:  # green = locked stock, yellow = locked custom key, orange = unlocked
+        return "yes" if vb == "orange" else "no"
+    return "unknown"
 
 
 def from_fastboot(vars_: dict[str, str], mode: Mode = "fastboot", serial: str = "") -> DeviceProfile:

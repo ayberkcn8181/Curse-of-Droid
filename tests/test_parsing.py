@@ -30,10 +30,19 @@ def test_profile_a_only_treble_huawei():
     assert p.brand == "HUAWEI" and p.model == "ATU-L21"
     # hardware codename (vendor) first, ROM's device name kept as alias
     assert p.codenames[:2] == ["msm8937_64", "atu_l21"]
+    # Huawei reports flash.locked=1/green even when unlocked; ro.userlock is right
     assert p.bootloader_unlocked == "yes"
-    assert p.ab == "unknown" and p.treble == "yes" and p.vndk_version == "26"
+    # ro.build.ab_update=true comes from the A/B-built GSI system; no slot suffix = A-only
+    assert p.ab == "no" and p.treble == "yes" and p.vndk_version == "26"
     assert p.sdk == 29 and p.system_as_root == "no"
     assert p.to_dict()["serial"] == "AB…89"
+
+
+def test_lock_state_sources():
+    assert from_props({"ro.boot.vbmeta.device_state": "unlocked", "ro.boot.flash.locked": "1"}).bootloader_unlocked == "yes"
+    assert from_props({"ro.boot.verifiedbootstate": "orange"}).bootloader_unlocked == "yes"
+    assert from_props({"ro.boot.verifiedbootstate": "yellow"}).bootloader_unlocked == "no"
+    assert from_props({"ro.boot.slot_suffix": "_b", "ro.build.version.sdk": "34"}).current_slot == "b"
 
 
 def test_fastboot_devices():

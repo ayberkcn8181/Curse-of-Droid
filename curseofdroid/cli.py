@@ -1,4 +1,4 @@
-"""Command line interface: `tools`, `detect`, `find`, `download`."""
+"""Command line interface: `tools`, `detect`, `find`, `download`, `install`."""
 
 from __future__ import annotations
 
@@ -8,7 +8,12 @@ import sys
 
 from . import __version__
 from .catalog.providers import ALL_PROVIDERS, TWRP, find_builds, is_stale
+from pathlib import Path
+
 from .device.detect import detect
+from .flash.executor import Executor, StepFailed
+from .flash.package import inspect as inspect_package
+from .flash.planner import InstallRequest, PlanError, plan_sideload_install
 from .platform.net import VerificationError, download
 from .platform.paths import downloads_dir
 from .platform.tools import find_tools, install_platform_tools
@@ -146,6 +151,53 @@ def cmd_download(args) -> int:
     return 0
 
 
+class ConsoleUI:
+    def info(self, text):
+        print(text)
+
+    def confirm(self, step):
+        print(f"\n   {step.explain}")
+        answer = input(f"   This step is [{step.risk}]. Type 'yes' to continue: ").strip().lower()
+        return answer == "yes"
+
+    def manual(self, step):
+        answer = input(f"   On the phone: {step.manual}\n   Press Enter when done (q to stop): ").strip().lower()
+        return answer != "q"
+
+
+def cmd_install(args) -> int:
+    tools = _need_tools()
+    found = [d for d in detect(tools.adb, tools.fastboot) if d.profile]
+    if len(found) != 1:
+        sys.exit("Connect exactly one phone (found %d)." % len(found))
+    dev = found[0]
+    rom = inspect_package(Path(args.rom))
+    req = InstallRequest(rom, recovery=Path(args.recovery) if args.recovery else None,
+                         recovery_name=args.recovery_name or "", flash_recovery=args.flash_recovery,
+                         recovery_partition=args.recovery_partition, wipe_data=not args.keep_data,
+                         extras=tuple(inspect_package(Path(x)) for x in args.extra or []))
+    try:
+        plan = plan_sideload_install(dev.profile, req)
+    except PlanError as e:
+        print(f"Can't install: {e}")
+        return 1
+    print(plan.render())
+    if args.dry_run:
+        print("\n(dry run: nothing was done)")
+        return 0
+    if input("\nStart? Type 'yes': ").strip().lower() != "yes":
+        return 1
+    try:
+        Executor(tools.adb, tools.fastboot, dev.serial, ConsoleUI()).run(plan)
+    except StepFailed as e:
+        print(f"\nStopped: {e}")
+        print("Nothing after this step was done. The phone can be put into fastboot (power + volume down) "
+              "or recovery mode to try again.")
+        return 1
+    print("\nDone.")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="curseofdroid", description=__doc__)
     ap.add_argument("--version", action="version", version=__version__)
@@ -166,6 +218,16 @@ def main(argv=None) -> int:
     dl.add_argument("codename", nargs="*")
     dl.add_argument("--project", action="append", required=True)
     dl.set_defaults(func=cmd_download)
+    i = sub.add_parser("install", help="install a ROM through a custom recovery (adb sideload)")
+    i.add_argument("--rom", required=True, help="ROM zip (from `download` or your own)")
+    i.add_argument("--recovery", help="recovery image to boot (or flash with --flash-recovery)")
+    i.add_argument("--recovery-name", help="e.g. TWRP, OrangeFox, LineageOS Recovery")
+    i.add_argument("--flash-recovery", action="store_true", help="write the recovery instead of booting it once")
+    i.add_argument("--recovery-partition", default="recovery", choices=["recovery", "boot", "vendor_boot"])
+    i.add_argument("--keep-data", action="store_true", help="don't format data (only for updates of the same ROM)")
+    i.add_argument("--extra", action="append", help="zip to sideload after the ROM (GApps, ...)")
+    i.add_argument("--dry-run", action="store_true", help="only print the plan")
+    i.set_defaults(func=cmd_install)
     args = ap.parse_args(argv)
     return args.func(args)
 

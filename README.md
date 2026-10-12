@@ -6,8 +6,8 @@ vendor's official procedure, finds a matching ROM (LineageOS, crDroid, Evolution
 recovery (TWRP, OrangeFox, LineageOS Recovery), verifies the downloads and flashes them — asking before every
 destructive step. If no build exists it can, with your permission, build one locally.
 
-**Status: early development — milestones 1–2 (tool setup, device detection, build catalog, verified downloads).**
-Nothing here flashes a phone yet.
+**Status: early development — milestones 1–3** (tool setup, device detection, build catalog, verified downloads,
+recovery + sideload install with a command guard). Tested on one real device so far; use `--dry-run` first.
 See [DESIGN.md](DESIGN.md) for the plan and the deliberate limits (official unlock methods only, firmware
 partitions are never written).
 
@@ -21,6 +21,18 @@ python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/curseofdroid find            # official builds for the connected phone (or: curseofdroid find <codename>)
 .venv/bin/curseofdroid download lavender --project TWRP   # newest build, size + checksum verified
 ```
+
+Install through a custom recovery:
+
+```bash
+curseofdroid install --rom ROM.zip --recovery twrp.img --recovery-name TWRP --dry-run   # print the plan only
+curseofdroid install --rom ROM.zip --recovery twrp.img --recovery-name TWRP --extra gapps.zip
+```
+
+The recovery is booted once from the computer (`fastboot boot`) unless `--flash-recovery` is given. Every step that
+erases data or writes the system asks you to type `yes`. Before anything runs, every command of the plan passes a
+guard: only known fastboot commands, writes only to OS/recovery partitions, wipes only of userdata/metadata/cache,
+never firmware partitions, never relocking. A ROM zip that names a different device is refused.
 
 Sources: LineageOS (download API), crDroid, Evolution X, DerpFest (their OTA JSON repos), PixelOS
 (official_devices API), TWRP (dl.twrp.me + published .sha256), OrangeFox (API v3).
