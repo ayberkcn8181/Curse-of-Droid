@@ -1,0 +1,65 @@
+name: Release
+
+# Builds the self-contained app on each OS and attaches it to a GitHub release.
+# Run it by pushing a tag (v0.2.0) or by hand (workflow_dispatch: builds only, as artifacts).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-22.04: older glibc, so the Linux build also runs on older distributions
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Qt runtime libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libxkbcommon-x11-0 libgl1 libfontconfig1 libdbus-1-3
+      - run: python -m pip install ".[gui,dev]" pyinstaller
+      - run: python -m pytest -q
+      - run: python packaging/build.py
+      - name: Smoke test the built programs
+        shell: bash
+        run: |
+          d=$(ls -d dist/curseofdroid-*/ | head -1)
+          "$d"curseofdroid/curseofdroid* --version
+          "$d"curseofdroid/curseofdroid* find lavender --project TWRP
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Checksums
+        run: cd out && sha256sum * > SHA256SUMS && cat SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          prerelease: true
+          body: |
+            Early development build. Unzip and run `curseofdroid` (command line) or `curseofdroid-gui` (window).
+            macOS builds are not signed: right-click → Open the first time. Windows SmartScreen may warn the same way.
+            Check the files against SHA256SUMS.
