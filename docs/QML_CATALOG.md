@@ -79,3 +79,11 @@ Publisher metadata needs dedicated official/community, device maintenance and fi
 those filters cannot be implemented honestly from the current Build model. Persistent discovery cache
 management, profile-aware QML GSI UI, translated messages, checksum fetching/download queues and
 verified installation manifests remain separate stages. The audit's P0 flash findings remain open.
+
+## Qt CI lifecycle
+
+One initial Windows/Python 3.10 push job terminated with a native Qt access violation; the corresponding
+PR matrix subsequently passed. It is not treated as a proven product fix or ignored as a green rerun.
+GUI tests now share a session-scoped QApplication held across module boundaries, with explicit worker
+and deferred-delete cleanup, rather than allowing separate module fixtures to release/recreate it.
+The final head must be checked on the full native CI matrix.

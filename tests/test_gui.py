@@ -14,11 +14,6 @@ from curseofdroid.flash.plan import Step  # noqa: E402
 from curseofdroid.gui.app import MainWindow  # noqa: E402
 
 
-@pytest.fixture(scope="module")
-def app():
-    return QApplication.instance() or QApplication([])
-
-
 def test_window_pages_and_device(app):
     w = MainWindow()
     p = DeviceProfile(mode="android", brand="OPPO", model="CPH2801", codenames=["OP628FL1"],

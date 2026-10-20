@@ -22,11 +22,6 @@ from curseofdroid.platform.tools import Tools
 from curseofdroid.transport.base import Result
 
 
-@pytest.fixture(scope="module")
-def app():
-    return QApplication.instance() or QApplication([])
-
-
 class SystemHints(QObject):
     colorSchemeChanged = Signal()
 

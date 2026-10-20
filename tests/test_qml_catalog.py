@@ -27,11 +27,6 @@ from curseofdroid.gui.theme import ThemeManager
 from curseofdroid.platform.net import NotFound
 
 
-@pytest.fixture(scope="module")
-def app():
-    return QApplication.instance() or QApplication([])
-
-
 def wait(app, condition):
     for _ in range(300):
         app.processEvents()
