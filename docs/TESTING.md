@@ -62,8 +62,14 @@ regression coverage (source entry-point subprocess smoke plus frozen GUI validat
 
 ## QML catalog slice
 
-See [QML_CATALOG.md](QML_CATALOG.md) for the 31 additional controlled provider/Qt cases, screenshot
-provenance and cancellation limits. On the UI-based catalog branch, **141 tests passed**, with
+See [QML_CATALOG.md](QML_CATALOG.md) for the 32 additional controlled provider/Qt cases, screenshot
+provenance and cancellation limits. On the UI-based catalog branch, **142 tests passed**, with
 **1997/2901 covered statements (68.84%)**. Wheel asset inclusion, source smoke, clean isolated frozen
 Linux GUI smoke, CLI help/version and compile/diff checks passed. Other native release builds are
 not certified by these results. No physical device was used and no destructive command was executed.
+
+GUI modules share one session QApplication. Dashboard owns its Catalog receivers and defaults to
+application ownership, preventing loss of receiver ownership while a worker is still active. The GC
+regression explicitly drops the caller reference during a blocked provider request and verifies delivery.
+Earlier Windows CI heads had intermittent native access violations; see the PR for exact-head CI results.
+The precise native fault was not established from the available Python-only crash trace.

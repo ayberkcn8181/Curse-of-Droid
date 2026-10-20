@@ -50,7 +50,10 @@ and missing dates, invalid codenames/links, browser routing, streaming, cancella
 stale result IDs, worker shutdown deferral, QML search/details/error expansion and both themes/sizes.
 No test performs destructive commands. The wheel includes the new Python/QML assets. The source and
 frozen Linux GUI smoke render passed with no QML output; CLI help/version and compile/diff checks
-also passed. Reusing prior local PyInstaller output encountered a symlink collision; a clean isolated
+also passed. The latest model-ownership head was rebuilt in fresh isolated PyInstaller output and
+its frozen Linux render exited 0 with empty output. Combined with transport PR #3 in an isolated
+worktree, 154 tests passed in 5.21s (72.28% statement coverage), without merging branches.
+Reusing prior local PyInstaller output encountered a symlink collision; a clean isolated
 GUI build succeeded. Native release archives remain unverified. See the PR for CI status.
 
 ## Real screenshot provenance
@@ -93,3 +96,6 @@ Dashboard now has application ownership by default; Catalog has dashboard owners
 This keeps asynchronous QObject result receivers alive across Python reference/GC boundaries. A GC
 regression test drops the caller reference during an in-flight request and verifies queued completion.
 CI uses verbose test names to identify any further native failure instead of suppressing it.
+
+The Python-only crash trace does not establish the precise native fault. The ownership fix and GC
+regression address a concrete lifetime gap; final-head native CI remains the validation criterion.
