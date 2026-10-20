@@ -21,7 +21,7 @@ from ..catalog.deviceinfo import device_info
 from ..catalog.gsi import trebledroid_builds, unpack_xz
 from ..flash.planner import InstallRequest, PlanError, plan_gsi_install, plan_sideload_install
 from ..platform import drivers
-from ..platform.net import download
+from ..platform.net import VerificationError, download, download_destination, verification_label
 from ..platform.paths import downloads_dir
 from ..platform.tools import find_tools, install_platform_tools
 from ..vendors import vendor_for
@@ -197,7 +197,7 @@ class MainWindow(QMainWindow):
         self.info_label = QLabel()
         self.info_label.setWordWrap(True)
         self.info_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        self.dl_btn = QPushButton("Download selected (checksum verified)")
+        self.dl_btn = QPushButton("Download selected (check available checksums)")
         self.dl_btn.clicked.connect(self.run_download)
         self.progress = QProgressBar()
         self.progress.setVisible(False)
@@ -275,7 +275,10 @@ class MainWindow(QMainWindow):
             self.log(f"{b.project}: no direct download — opening {b.main.url}")
             QDesktopServices.openUrl(QUrl(b.main.url))
             return
-        dest = downloads_dir() / b.codename / b.main.filename
+        try:
+            dest = download_destination(downloads_dir(), b.codename, b.main.filename)
+        except VerificationError as error:
+            return self.fail(str(error))
         self.progress.setVisible(True)
         self.progress.setValue(0)
         self.dl_btn.setEnabled(False)
@@ -284,12 +287,15 @@ class MainWindow(QMainWindow):
             if b.project == "TWRP":
                 TWRP().fill_hash(b)
             path = download(b.main.url, dest, size=b.main.size, hashes=b.main.hashes, headers=b.main.headers,
-                            progress=progress)
-            return unpack_xz(path) if path.name.endswith(".img.xz") else path
+                            progress=lambda d, t: progress(d * 100 // t if t else 0, 100 if t else 0))
+            return path, unpack_xz(path) if path.name.endswith(".img.xz") else path
 
-        def done(path):
+        def done(result):
+            downloaded, path = result
             self.dl_btn.setEnabled(True)
-            self.log(f"Verified: {path}")
+            self.log(f"{verification_label(size=b.main.size, hashes=b.main.hashes)}: {downloaded}")
+            if path != downloaded:
+                self.log(f"Unpacked image (not separately checksummed): {path}")
             (self.recovery_edit if b.kind == "recovery" else self.rom_edit).setText(str(path))
             if b.kind == "recovery":
                 self.recovery_name.setCurrentText(b.project)

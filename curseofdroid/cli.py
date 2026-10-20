@@ -18,7 +18,7 @@ from .catalog.gsi import gsi_fit, trebledroid_builds, unpack_xz
 from .flash.planner import InstallRequest, PlanError, plan_gsi_install, plan_sideload_install
 from .platform import drivers
 from .vendors import vendor_for
-from .platform.net import VerificationError, download
+from .platform.net import VerificationError, download, download_destination, verification_label
 from .platform.paths import downloads_dir
 from .platform.tools import find_tools, install_platform_tools
 
@@ -179,9 +179,13 @@ def cmd_download(args) -> int:
         return 1
     if isinstance(p, TWRP):
         p.fill_hash(b)
-    dest = downloads_dir() / b.codename / b.main.filename
+    try:
+        dest = download_destination(downloads_dir(), b.codename, b.main.filename)
+    except VerificationError as error:
+        print(f"Download refused: {error}", file=sys.stderr)
+        return 1
     if not b.main.hashes:
-        print("! The project publishes no checksum for this file; only the size can be checked.")
+        print("! The project publishes no checksum for this file; authenticity is unverified.")
     print(f"Downloading {b.main.filename} -> {dest}")
 
     def progress(done, total):
@@ -194,7 +198,7 @@ def cmd_download(args) -> int:
     except VerificationError as e:
         print(f"\nVerification failed: {e}. The partial file was kept as .part; try again.")
         return 1
-    print(f"\nVerified ({', '.join(b.main.hashes) or 'size'}): {dest}")
+    print(f"\n{verification_label(size=b.main.size, hashes=b.main.hashes)}: {dest}")
     return 0
 
 
@@ -329,7 +333,7 @@ def cmd_gsi(args) -> int:
         print(f"  {b.project} {b.version} · {b.variant} · {b.main.size / 2**30:.2f} GiB · {b.main.filename}")
     if args.download and builds:
         b = builds[1] if args.old and len(builds) > 1 else builds[0]
-        dest = downloads_dir() / "gsi" / b.main.filename
+        dest = download_destination(downloads_dir(), "gsi", b.main.filename)
         print(f"Downloading {b.main.filename} (TrebleDroid publishes no checksum; size is checked) …")
         download(b.main.url, dest, size=b.main.size,
                  progress=lambda d, t: print(f"\r  {d * 100 // t if t else 0:3d}%", end="", flush=True))

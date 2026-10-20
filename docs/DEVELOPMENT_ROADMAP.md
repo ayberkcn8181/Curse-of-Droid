@@ -108,3 +108,8 @@ is merged without the owner's approval. A mocked test or offscreen capture is no
   provider controller, filters, details, source links, explicit unknown/provenance semantics, cancellation
   and stale-device invalidation. See QML_CATALOG.md for tests, real screenshot provenance and limits.
   Dedicated verified downloads, profile-aware QML GSIs and installation methods remain follow-ups.
+
+- Download integrity/resume hardening on `fix/download-integrity-resume`, stacked on the catalog slice:
+  strong ETag and exact range/resource checks, cancellation, length/hash/disk/path checks, host CA trust
+  and honest CLI/Widgets verification labels. See DOWNLOAD_INTEGRITY.md. QML queue integration follows
+  separately; no main merge or additional flash capability is introduced.

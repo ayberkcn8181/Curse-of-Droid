@@ -40,3 +40,24 @@ def test_confirm_from_worker_thread_needs_typed_yes(app, monkeypatch):
     while t.is_alive():
         app.processEvents()
     assert results == [True, False]  # "y" is not enough
+
+
+def test_legacy_download_handles_large_progress_without_claiming_hash(app, tmp_path, monkeypatch):
+    from curseofdroid.catalog.base import Artifact, Build
+    from curseofdroid.gui import widgets
+
+    monkeypatch.setenv("CURSEOFDROID_HOME", str(tmp_path))
+    monkeypatch.setattr(widgets, "start", lambda job: job.run())
+
+    def transfer(url, dest, **kwargs):
+        kwargs["progress"](4 << 30, 8 << 30)
+        return dest
+
+    monkeypatch.setattr(widgets, "download", transfer)
+    w = MainWindow()
+    w.show_builds(({"Source": [Build("Source", "rom", "phone", "1", None,
+                                       [Artifact("rom.zip", "https://example.org/rom.zip")])]}, []))
+    w.table.selectRow(0)
+    w.run_download()
+    assert w.progress.maximum() == 100 and w.progress.value() == 50
+    assert "no publisher checksum or expected size" in w.logbox.toPlainText()
