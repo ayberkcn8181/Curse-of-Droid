@@ -41,3 +41,12 @@ jobs finish and QML is destroyed. One CatalogPage serves ROM and recovery routes
 Manual search validates codenames before network access. Selected-device queries store an identity
 snapshot and clear rows when the dashboard selection changes. Link opening resolves only stored,
 validated HTTPS fields on the current selection; headers and executable commands are not exposed.
+
+## Persistent download queue
+
+gui/downloads.py consumes private selected-Build snapshots and delegates to platform.net.download.
+One QRunnable drains a FIFO queue; thread-safe progress messages update GUI-owned records. History
+uses atomic JSON replacement and a QLockFile writer lock. Files have unique record directories; queue
+restoration pauses work and invalidates prior completion claims until actual-file checks run again.
+Runtime connects catalog selections, activity and the downloadManager QML context, then releases
+the writer lock on normal idle shutdown. See QML_DOWNLOADS.md for boundaries and executed evidence.

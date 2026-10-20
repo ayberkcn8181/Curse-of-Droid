@@ -13,19 +13,23 @@ from PySide6.QtWidgets import QApplication
 from .. import __version__
 from .catalog import Catalog
 from .dashboard import Dashboard
+from .downloads import DownloadManager
 from .theme import ThemeManager
 from .widgets import MainWindow  # Backwards-compatible import for existing integrations and tests.
 
 
 class Runtime:
-    def __init__(self, app, theme=None, dashboard=None, auto_discover=True, rom_catalog=None, recovery_catalog=None):
+    def __init__(self, app, theme=None, dashboard=None, auto_discover=True, rom_catalog=None, recovery_catalog=None, downloads=None):
         self.app = app
         self.theme = theme if theme is not None else ThemeManager()
         self.dashboard = dashboard if dashboard is not None else Dashboard()
         self.rom_catalog = rom_catalog if rom_catalog is not None else Catalog("rom", self.dashboard)
         self.recovery_catalog = recovery_catalog if recovery_catalog is not None else Catalog("recovery", self.dashboard)
+        self.downloads = downloads if downloads is not None else DownloadManager(parent=self.dashboard)
+        self.downloads.operationReported.connect(self.dashboard.record_catalog_event)
         for catalog in (self.rom_catalog, self.recovery_catalog):
             catalog.operationReported.connect(self.dashboard.record_catalog_event)
+            catalog.downloadRequested.connect(self.downloads.enqueue)
         self.windows = []
         if QQuickStyle.name() != "Basic":
             QQuickStyle.setStyle("Basic")
@@ -36,6 +40,7 @@ class Runtime:
         self.engine.rootContext().setContextProperty("autoDiscover", auto_discover)
         self.engine.rootContext().setContextProperty("romCatalog", self.rom_catalog)
         self.engine.rootContext().setContextProperty("recoveryCatalog", self.recovery_catalog)
+        self.engine.rootContext().setContextProperty("downloadManager", self.downloads)
         self.dashboard.legacyRequested.connect(self.open_legacy)
         self.engine.load(QUrl.fromLocalFile(str(Path(__file__).parent / "qml" / "Main.qml")))
         if not self.engine.rootObjects():
@@ -45,6 +50,7 @@ class Runtime:
         # Destroy QML before its context objects, avoiding null bindings during Python teardown.
         self.engine.deleteLater()
         self.app.sendPostedEvents(None, QEvent.DeferredDelete)
+        self.downloads.close()
 
     def open_legacy(self, page):
         w = MainWindow()

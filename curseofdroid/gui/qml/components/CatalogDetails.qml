@@ -23,6 +23,7 @@ Popup {
             RowLayout {
                 Layout.fillWidth: true
                 UiText { text: details.build.project || qsTr("Build details"); font.pixelSize: 22 * theme.scale; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                AppButton { objectName: "queueSelectedDownload"; text: qsTr("Download file"); kind: "primary"; visible: !!details.build.direct; enabled: !!details.build.sourceUrl; onClicked: { details.catalog.queueSelected(); details.close() } }
                 AppButton { text: qsTr("Close"); onClicked: details.close() }
             }
             UiText { text: qsTr("Codename matches are catalog results, not verified installation compatibility."); color: theme.colors.warning; Layout.fillWidth: true }
@@ -51,7 +52,7 @@ Popup {
             Flow {
                 Layout.fillWidth: true
                 spacing: 10
-                AppButton { text: details.build.direct ? qsTr("Open publisher file") : qsTr("Open download page"); kind: "primary"; enabled: !!details.build.sourceUrl; onClicked: details.catalog.openSelectedLink("source") }
+                AppButton { text: details.build.direct ? qsTr("Open publisher file") : qsTr("Open download page"); enabled: !!details.build.sourceUrl; onClicked: details.catalog.openSelectedLink("source") }
                 AppButton { text: qsTr("Instructions"); enabled: !!details.build.instructionsUrl; onClicked: details.catalog.openSelectedLink("instructions") }
                 AppButton { text: qsTr("Project website"); enabled: !!details.build.homepageUrl; onClicked: details.catalog.openSelectedLink("project") }
             }

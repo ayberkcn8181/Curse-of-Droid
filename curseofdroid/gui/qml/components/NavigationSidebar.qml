@@ -32,7 +32,7 @@ Rectangle {
                      {key:"roms", title:qsTr("ROM library"), icon:"layers", ready:true},
                      {key:"recovery", title:qsTr("Recovery manager"), icon:"shield", ready:true},
                      {key:"install", title:qsTr("Installation wizard"), icon:"wand", ready:false},
-                     {key:"downloads", title:qsTr("Downloads"), icon:"download", ready:false},
+                     {key:"downloads", title:qsTr("Downloads"), icon:"download", ready:true},
                      {key:"advanced", title:qsTr("Advanced tools"), icon:"terminal", ready:false},
                      {key:"activity", title:qsTr("Activity & logs"), icon:"activity", ready:true} ]
             delegate: AppButton {

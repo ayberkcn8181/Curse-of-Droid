@@ -28,12 +28,12 @@ ApplicationWindow {
     palette.toolTipBase: theme.colors.elevated
     palette.toolTipText: theme.colors.text
     property string currentPage: "dashboard"
-    readonly property var pageKeys: ["dashboard", "device", "activity", "settings", "roms", "recovery"]
-    readonly property var pageTitles: [qsTr("Dashboard"), qsTr("My device"), qsTr("Activity & logs"), qsTr("Settings"), qsTr("ROM library"), qsTr("Recovery manager")]
+    readonly property var pageKeys: ["dashboard", "device", "activity", "settings", "roms", "recovery", "downloads"]
+    readonly property var pageTitles: [qsTr("Dashboard"), qsTr("My device"), qsTr("Activity & logs"), qsTr("Settings"), qsTr("ROM library"), qsTr("Recovery manager"), qsTr("Downloads")]
     onClosing: function(close) {
-        if (backend.busy || romCatalog.busy || recoveryCatalog.busy) {
+        if (backend.busy || romCatalog.busy || recoveryCatalog.busy || downloadManager.busy) {
             close.accepted = false
-            toast.show(qsTr("An operation is running. Wait for it to finish before closing."))
+            toast.show(qsTr("An operation is running. Pause downloads or wait for operations to finish before closing."))
         }
     }
     Component.onCompleted: if (autoDiscover) backend.refresh()
@@ -72,6 +72,7 @@ ApplicationWindow {
                 SettingsPage {}
                 CatalogPage { catalog: romCatalog }
                 CatalogPage { catalog: recoveryCatalog; recovery: true }
+                DownloadsPage {}
             }
         }
     }
@@ -88,5 +89,6 @@ ApplicationWindow {
     Connections { target: backend; function onNotice(message) { toast.show(message) } }
     Connections { target: romCatalog; function onNotice(message) { toast.show(message) } }
     Connections { target: recoveryCatalog; function onNotice(message) { toast.show(message) } }
+    Connections { target: downloadManager; function onNotice(message) { toast.show(message) } function onAdded() { window.currentPage = "downloads" } }
     Connections { target: theme; function onPreferenceError(message) { toast.show(message) } }
 }

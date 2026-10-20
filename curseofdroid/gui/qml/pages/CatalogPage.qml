@@ -43,7 +43,7 @@ ColumnLayout {
                 UiText { text: qsTr("Providers completed: ") + page.catalog.completedProviders + " / " + page.catalog.providerCount; secondary: true; Layout.fillWidth: true }
                 AppButton { text: qsTr("Cancel"); enabled: page.catalog.state !== "cancelling"; onClicked: page.catalog.cancel() }
             }
-            ProgressBar { visible: page.catalog.busy; Layout.fillWidth: true; from: 0; to: page.catalog.providerCount; value: page.catalog.completedProviders; Accessible.name: qsTr("Catalog providers completed") }
+            AppProgressBar { visible: page.catalog.busy; Layout.fillWidth: true; from: 0; to: page.catalog.providerCount; value: page.catalog.completedProviders; Accessible.name: qsTr("Catalog providers completed") }
         }
     }
     RowLayout {
@@ -95,7 +95,7 @@ ColumnLayout {
             UiText { text: page.catalog.state === "idle" ? qsTr("Search manually or use the selected device. Results arrive as each provider finishes.") : qsTr("Check the codename, filters and provider errors. An unavailable source does not prove that no build exists."); secondary: true; Layout.fillWidth: true }
         }
     }
-    UiText { text: qsTr("Release age is not maintenance status. Files are not downloaded or verified by this catalog page."); secondary: true; font.pixelSize: 11 * theme.scale; Layout.fillWidth: true }
+    UiText { text: qsTr("Open build details to queue a download. Release age and checksum availability do not certify installation compatibility."); secondary: true; font.pixelSize: 11 * theme.scale; Layout.fillWidth: true }
     CatalogDetails { id: details; parent: Overlay.overlay; anchors.centerIn: parent; catalog: page.catalog }
     Connections {
         target: page.catalog

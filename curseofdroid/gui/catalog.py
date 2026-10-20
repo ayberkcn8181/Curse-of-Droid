@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import copy
 import ipaddress
 import itertools
 import queue
@@ -75,6 +76,7 @@ class Catalog(QObject):
     changed = Signal()
     notice = Signal(str)
     operationReported = Signal(str)
+    downloadRequested = Signal(object)
 
     def __init__(self, kind, dashboard, providers=None, fetch=None, parent=None):
         # Native ownership outlives queued worker callbacks even if a Python caller drops its reference.
@@ -92,6 +94,7 @@ class Catalog(QObject):
         self._rows = []
         self._visible = []
         self._by_id = {}
+        self._sources = {}
         self._selected = -1
         self._busy = False
         self._state = "idle"
@@ -165,7 +168,7 @@ class Catalog(QObject):
         if self._device_key is not None and self._device_key != self._identity():
             self._invalidated = True
             self._cancel.set()
-            self._rows, self._visible, self._by_id, self._errors = [], [], {}, []
+            self._rows, self._visible, self._by_id, self._sources, self._errors = [], [], {}, {}, []
             self._selected = -1
             self._state = "invalidated"
             self._device_key = None
@@ -195,7 +198,7 @@ class Catalog(QObject):
         self._cancel = threading.Event()
         self._pending = queue.SimpleQueue()
         self._query = ", ".join(names)
-        self._rows, self._visible, self._by_id, self._errors = [], [], {}, []
+        self._rows, self._visible, self._by_id, self._sources, self._errors = [], [], {}, {}, []
         self._selected = -1
         self._done_count = 0
         self._busy = True
@@ -233,6 +236,7 @@ class Catalog(QObject):
                                 builds_to_show = [build]
                             for b in builds_to_show:
                                 row = build_row(b, provider.homepage, next(identifiers))
+                                row["_source"] = copy.deepcopy(b)
                                 batch.append(row)
                         except (AttributeError, TypeError, ValueError, IndexError):
                             errors.append(f"{provider.name}: malformed build metadata skipped")
@@ -249,6 +253,8 @@ class Catalog(QObject):
         while not self._pending.empty():
             batch, errors = self._pending.get()
             if not self._invalidated:
+                for row in batch:
+                    self._sources[row["id"]] = row.pop("_source")
                 self._rows.extend(batch)
                 self._errors.extend(errors)
         self._by_id = {r["id"]: r for r in self._rows}
@@ -317,6 +323,13 @@ class Catalog(QObject):
     def select(self, identifier):
         self._selected = identifier if any(r["id"] == identifier for r in self._visible) else -1
         self.changed.emit()
+
+    @Slot()
+    def queueSelected(self):
+        if self._selected in self._sources and self.selected:
+            self.downloadRequested.emit(copy.deepcopy(self._sources[self._selected]))
+        else:
+            self.notice.emit(self.tr("Select a current catalog result first."))
 
     @Slot(str)
     def openSelectedLink(self, role):

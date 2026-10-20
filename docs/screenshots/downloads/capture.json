@@ -1,0 +1,41 @@
+{
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "python": "3.12.14",
+  "qt": "6.12.0",
+  "state": "missing",
+  "tools_ready": false,
+  "devices": 0,
+  "catalog_query": "lavender",
+  "download_project": "TWRP",
+  "downloads": [
+    {
+      "id": "96b124a000d14e8985862bdf616ba741",
+      "project": "TWRP",
+      "filename": "twrp-3.7.0_9-0-lavender.img",
+      "codename": "lavender",
+      "state": "complete",
+      "done": "35225600",
+      "total": "35225600",
+      "fraction": 1,
+      "integrity": "Publisher checksum matched: sha256",
+      "error": "",
+      "hashes": "sha256",
+      "canCheck": true,
+      "active": false
+    }
+  ],
+  "catalog": {
+    "roms": {
+      "state": "idle",
+      "rows": 0,
+      "errors": 0
+    },
+    "recovery": {
+      "state": "ready",
+      "rows": 19,
+      "errors": 0
+    }
+  },
+  "method": "QQuickWindow.grabWindow, actual backend, no injected data; offscreen software rendering",
+  "publication_recovery": "Three transferred PNG blobs recovered after the execution environment became unavailable. The fourth light-small capture could not be transferred."
+}

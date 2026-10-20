@@ -4,7 +4,7 @@ Install custom ROMs and custom recoveries on Android phones — on Windows, Linu
 Curse of Droid detects the phone, sets up adb/fastboot and drivers, checks the bootloader and unlocks it through the
 vendor's official procedure, finds a matching ROM (LineageOS, crDroid, Evolution X, PixelOS, DerpFest, GSIs) and
 recovery (TWRP, OrangeFox, LineageOS Recovery), verifies the downloads and flashes them — asking before every
-destructive step. If no build exists it can, with your permission, build one locally.
+destructive step. Local ROM building remains planned.
 
 **Status: early development — milestones 1–5** (tool setup, USB drivers/udev, device detection, build catalog,
 verified downloads from 19 ROM projects, official bootloader unlock flows, recovery + sideload install with a command guard, desktop app). Tested on one real device so far; use `--dry-run` first.
@@ -81,10 +81,13 @@ checksums, so only the download size can be verified.
 The Qt Quick workspace includes a live Dashboard, explicit device selection, device details, session activity
 and Appearance settings. The QML ROM Library and Recovery Manager use the existing provider registry
 with streaming searches, filters, metadata details, cancellation and HTTPS source links. Catalog matches
-do not certify installation compatibility. Light, dark and system themes apply immediately; theme, accent, workspace scale and
+do not certify installation compatibility. Direct files enter the persistent QML Downloads queue, with
+pause/resume, retry, publisher checksum checks, file rechecking and folder access. Missing/weak checks
+are labeled explicitly; restored history requires checks again. See [download details](docs/QML_DOWNLOADS.md).
+Light, dark and system themes apply immediately; theme, accent, workspace scale and
 motion preferences persist. Discovery uses the same read-only Python services as the CLI and runs in workers.
 
-Bootloader, downloads, GSI tools and installation remain available through **Existing workflows**, or run
+Bootloader, legacy downloads, GSI tools and installation remain available through **Existing workflows**, or run
 `curseofdroid-gui --classic`. QML pages still awaiting migration are visibly disabled. The existing installer is
 early-development software; see [the audit and safety gaps](docs/DEVELOPMENT_ROADMAP.md) before using it.
 

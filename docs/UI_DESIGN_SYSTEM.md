@@ -51,6 +51,10 @@ manual inspection, but are not comprehensive screen-reader or WCAG compliance ce
 
 ## Remaining work
 
-Dedicated QML download/wizard/advanced pages, persistent operation history, support bundles,
+Dedicated QML wizard/advanced pages, persistent general operation history, support bundles,
 Turkish/English translation catalogs (qsTr hooks are present), language selection, full native dialogs,
 automatic OS motion preferences and extended high-DPI/accessibility/native-platform QA remain open.
+
+Downloads use the shared card/button/text system and AppProgressBar semantic colors. Completed file
+transfers remain separate from integrity wording. Real dark/light captures and publisher provenance are
+in screenshots/downloads/; see QML_DOWNLOADS.md. The catalog details action enters the persistent queue.

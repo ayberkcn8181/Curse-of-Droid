@@ -113,3 +113,8 @@ is merged without the owner's approval. A mocked test or offscreen capture is no
   strong ETag and exact range/resource checks, cancellation, length/hash/disk/path checks, host CA trust
   and honest CLI/Widgets verification labels. See DOWNLOAD_INTEGRITY.md. QML queue integration follows
   separately; no main merge or additional flash capability is introduced.
+
+- QML Downloads on feat/qml-download-manager, based on the download-hardening branch: working catalog
+  actions, persistent FIFO/pause/retry/recheck, explicit integrity levels and a single history writer.
+  A real TWRP download was checked and theme/size captures recorded. See QML_DOWNLOADS.md for validation,
+  publication recovery and remaining work. GSI/wizard, trusted installation metadata and P0 findings remain open.

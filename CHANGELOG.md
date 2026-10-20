@@ -10,3 +10,5 @@
 - Add offscreen theme screenshots, settings/restart, transport-integration and keyboard/render tests.
 - Add read-only QML ROM/recovery catalogs over the full provider registry, with streaming search,
   filters, metadata details, source links, cancellation and selected-device result invalidation.
+- Add a persistent QML download queue backed by real catalog artifacts, with pause/resume, retry,
+  file rechecking, single-writer protection, explicit integrity labels and real publisher-download captures.
