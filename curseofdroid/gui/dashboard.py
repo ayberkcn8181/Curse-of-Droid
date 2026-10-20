@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QObject, Property, Signal, Slot
+from PySide6.QtCore import QCoreApplication, QObject, Property, Signal, Slot
 
 from ..catalog.providers import ALL_PROVIDERS
 from ..device.detect import detect
@@ -17,7 +17,7 @@ class Dashboard(QObject):
     legacyRequested = Signal(int)
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(parent if parent is not None else QCoreApplication.instance())
         self._busy = False
         self._state = "idle"
         self._scanned = False

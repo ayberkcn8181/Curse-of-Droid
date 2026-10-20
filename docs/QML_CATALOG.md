@@ -41,10 +41,10 @@ Linux, Python 3.12.14, PySide6 6.12.0:
 ```
 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python -m pytest -q \
   --cov=curseofdroid --cov-report=term --cov-report=json:coverage.json --cov-fail-under=65
-141 passed in 5.13s; 1997/2901 covered statements = 68.84%
+142 passed in 5.05s; 1997/2901 covered statements = 68.84%
 ```
 
-The 31 new parameterized cases use real provider parsers with controlled HTTP responses, not real
+The 32 new parameterized cases use real provider parsers with controlled HTTP responses, not real
 USB. They cover all provider registrations, source failure isolation, recovery roles, filters, future
 and missing dates, invalid codenames/links, browser routing, streaming, cancellation, device changes,
 stale result IDs, worker shutdown deferral, QML search/details/error expansion and both themes/sizes.
@@ -87,3 +87,9 @@ PR matrix subsequently passed. It is not treated as a proven product fix or igno
 GUI tests now share a session-scoped QApplication held across module boundaries, with explicit worker
 and deferred-delete cleanup, rather than allowing separate module fixtures to release/recreate it.
 The final head must be checked on the full native CI matrix.
+
+A later Windows job also showed the native access violation, so session lifetime alone is insufficient.
+Dashboard now has application ownership by default; Catalog has dashboard ownership by default.
+This keeps asynchronous QObject result receivers alive across Python reference/GC boundaries. A GC
+regression test drops the caller reference during an in-flight request and verifies queued completion.
+CI uses verbose test names to identify any further native failure instead of suppressing it.

@@ -349,3 +349,26 @@ def test_qml_provider_errors_can_be_expanded(app, dashboard, responses, tmp_path
     finally:
         window.close()
         runtime.shutdown()
+
+
+def test_worker_receiver_survives_caller_reference_collection(app, dashboard, responses):
+    import gc
+    release, entered = threading.Event(), threading.Event()
+
+    def blocked(url):
+        entered.set()
+        release.wait(3)
+        return fetcher(responses)(url)
+
+    controller = Catalog("rom", dashboard, [LineageOS], blocked)
+    try:
+        controller.search("testphone")
+        wait(app, entered.is_set)
+        del controller
+        gc.collect()
+        receiver = dashboard.findChildren(Catalog)[0]
+        assert receiver.busy
+    finally:
+        release.set()
+        wait(app, lambda: not dashboard.findChildren(Catalog)[0].busy)
+    assert receiver.totalCount == 1 and receiver.state == "ready"

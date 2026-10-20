@@ -77,7 +77,8 @@ class Catalog(QObject):
     operationReported = Signal(str)
 
     def __init__(self, kind, dashboard, providers=None, fetch=None, parent=None):
-        super().__init__(parent)
+        # Native ownership outlives queued worker callbacks even if a Python caller drops its reference.
+        super().__init__(parent if parent is not None else dashboard)
         if kind not in ("rom", "recovery"):
             raise ValueError("unknown catalog kind")
         self.kind = kind
