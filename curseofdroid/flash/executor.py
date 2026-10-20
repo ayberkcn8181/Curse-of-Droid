@@ -35,7 +35,7 @@ def validate(plan: Plan) -> None:
     for step in plan.steps:
         for c in step.commands:
             check_command(c.tool, c.args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
-                          allow_unlock=step.unlock)
+                          allow_unlock=step.unlock, allow_unlock_placeholder=bool(step.ask))
 
 
 class Executor:
@@ -60,13 +60,16 @@ class Executor:
             answer = ""
             if step.ask:
                 answer = self.ui.ask(step).strip()
-                if not answer or not re.fullmatch(r"[\w-]{1,128}", answer):
+                if not answer or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", answer):
                     raise StepFailed(step, "no valid answer given")
             for c in step.commands:
                 args = [x.replace("{answer}", answer) for x in c.args]
                 # re-check right before running (defence in depth)
-                check_command(c.tool, args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
-                              allow_unlock=step.unlock)
+                try:
+                    check_command(c.tool, args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
+                                  allow_unlock=step.unlock)
+                except GuardError as e:
+                    raise StepFailed(step, f"command rejected: {e}") from None
                 tool = self.adb if c.tool == "adb" else self.fastboot
                 r = tool.run(*args, timeout=c.timeout)
                 if step.show_output:

@@ -42,16 +42,16 @@ def test_guard_logical_partitions():
     check_command("fastboot", ["flash", "system", "s.img"], logical_ok=True)  # A-only device: real partition
 
 
-def test_guard_adb_raw_writes():
-    check_command("adb", ["shell", "dd if=/tmp/x of=/dev/block/bootdevice/by-name/system bs=4M"])
-    check_command("adb", ["sideload", "rom.zip"])
-    with pytest.raises(GuardError):
-        check_command("adb", ["shell", "dd if=/tmp/x of=/dev/block/mmcblk0p54"])
-    with pytest.raises(GuardError):
-        check_command("adb", ["shell", "dd if=/tmp/x of=/dev/block/by-name/modem"])
-    with pytest.raises(GuardError):
-        check_command("adb", ["shell", "mkfs.f2fs /dev/block/by-name/persist"])
-    check_command("adb", ["shell", "mkfs.f2fs /dev/block/by-name/userdata"])
+@pytest.mark.parametrize("command", [
+    "dd if=/tmp/x of=/dev/block/bootdevice/by-name/system bs=4M",
+    "dd if=/tmp/x of=/dev/block/mmcblk0p54",
+    "dd if=/tmp/x of=/dev/block/by-name/modem",
+    "mkfs.f2fs /dev/block/by-name/persist",
+    "mkfs.f2fs /dev/block/by-name/userdata",
+])
+def test_guard_adb_raw_writes_are_not_plan_commands(command):
+    with pytest.raises(GuardError, match="shell commands are not allowed"):
+        check_command("adb", ["shell", command])
 
 
 # ---- package -----------------------------------------------------------------------------------------------
@@ -173,7 +173,7 @@ def test_executor_waits_for_mode():
 
 
 @pytest.mark.parametrize("args, why", [
-    (["format:ext4", "persist"], "only userdata"), (["flash:raw", "modem", "k"], "firmware"),
+    (["format:ext4", "persist"], "only userdata"), (["flash:raw", "modem", "k"], "unknown"),
     (["oem", "frp-unlock"], "unknown"), (["oem", "erase-all"], "unknown"), (["flashing", "unlock"], "vendor unlock"),
     (["--slot=all", "flash", "xbl", "x"], "firmware"), (["--skip-reboot"], "without a sub-command"),
 ])
