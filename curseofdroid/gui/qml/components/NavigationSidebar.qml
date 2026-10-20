@@ -29,8 +29,8 @@ Rectangle {
         Repeater {
             model: [ {key:"dashboard", title:qsTr("Dashboard"), icon:"dashboard", ready:true},
                      {key:"device", title:qsTr("My device"), icon:"phone", ready:true},
-                     {key:"roms", title:qsTr("ROM library"), icon:"layers", ready:false},
-                     {key:"recovery", title:qsTr("Recovery manager"), icon:"shield", ready:false},
+                     {key:"roms", title:qsTr("ROM library"), icon:"layers", ready:true},
+                     {key:"recovery", title:qsTr("Recovery manager"), icon:"shield", ready:true},
                      {key:"install", title:qsTr("Installation wizard"), icon:"wand", ready:false},
                      {key:"downloads", title:qsTr("Downloads"), icon:"download", ready:false},
                      {key:"advanced", title:qsTr("Advanced tools"), icon:"terminal", ready:false},
@@ -64,7 +64,7 @@ Rectangle {
             }
         }
         Item { Layout.fillHeight: true }
-        UiText { visible: !sidebar.collapsed && sidebar.height > 800; text: qsTr("ROM, recovery and install tools remain available in Existing workflows."); secondary: true; font.pixelSize: 11; Layout.fillWidth: true; Layout.margins: 10 }
+        UiText { visible: !sidebar.collapsed && sidebar.height > 800; text: qsTr("Installation tools remain available in Existing workflows."); secondary: true; font.pixelSize: 11; Layout.fillWidth: true; Layout.margins: 10 }
         AppButton {
             Layout.fillWidth: true
             text: sidebar.collapsed ? "" : qsTr("Settings")

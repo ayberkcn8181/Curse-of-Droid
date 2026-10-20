@@ -69,7 +69,7 @@ ScrollView {
                 spacing: 12
                 UiText { text: qsTr("About Curse of Droid"); font.weight: Font.DemiBold; font.pixelSize: 18 * theme.scale }
                 UiText { text: qsTr("Version ") + appVersion + "  ·  GPL-3.0-or-later"; secondary: true }
-                UiText { text: qsTr("The new QML workspace shares the CLI’s real Python backend. Catalog and installation workflows remain available in the existing interface while migration continues."); secondary: true; Layout.fillWidth: true }
+                UiText { text: qsTr("The new QML workspace shares the CLI’s real Python backend. The ROM and recovery catalog uses existing providers. Installation remains available in the existing interface while migration continues."); secondary: true; Layout.fillWidth: true }
                 AppButton { text: qsTr("Open existing workflows"); iconName: "terminal"; enabled: !backend.busy; onClicked: backend.openLegacy(0) }
             }
         }

@@ -32,8 +32,8 @@ backend state; an undiscovered device count is shown as “—”. Unknown prope
 is explicitly not reported. The provider count is the real registry count, not compatible ROM results.
 Discovery/tool installation run in workers. No device commands or fake data are implemented in QML.
 
-Dashboard, My device, Activity & logs and Settings are functioning QML pages. Other QML navigation
-entries are explicitly disabled pending migration. ROM/recovery discovery and installation quick actions
+Dashboard, My device, Activity & logs, Settings, ROM Library and Recovery Manager are functioning QML
+pages. Remaining QML navigation entries are explicitly disabled pending migration. ROM/recovery discovery and installation quick actions
 open the preserved Widgets workflow with the chosen device. This first UI slice combines theme,
 components, shell and Dashboard because they are required together to demonstrate a working application.
 The audited legacy flash safety issues still require separate PRs before expanding automated installation.
@@ -51,6 +51,6 @@ manual inspection, but are not comprehensive screen-reader or WCAG compliance ce
 
 ## Remaining work
 
-Dedicated QML ROM/recovery/download/wizard/advanced pages, persistent operation history, support bundles,
+Dedicated QML download/wizard/advanced pages, persistent operation history, support bundles,
 Turkish/English translation catalogs (qsTr hooks are present), language selection, full native dialogs,
 automatic OS motion preferences and extended high-DPI/accessibility/native-platform QA remain open.

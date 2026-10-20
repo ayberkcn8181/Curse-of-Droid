@@ -29,3 +29,15 @@ object and reuses the original backend/guards; no flash executor is exposed dire
 `gui/theme.py` owns validated QSettings preferences and semantic palettes. Runtime creates it before
 loading QML. System mode watches Qt colorSchemeChanged; unsupported/unknown schemes fall back to light.
 The QML component tree is shared by all themes. No runtime dependency was added beyond existing PySide6.
+
+## Catalog projections
+
+`gui/catalog.py` projects existing Build/Artifact objects for QML. Two Catalog instances share the
+provider registry/parsers but own their query, filters, cancellation event and selection. Worker batches
+cross a thread-safe queue; queued Job progress/done slots drain them on the GUI thread. No QObject
+properties are mutated by the HTTP worker. Runtime owns both controllers and keeps them alive until
+jobs finish and QML is destroyed. One CatalogPage serves ROM and recovery routes with virtualized cards.
+
+Manual search validates codenames before network access. Selected-device queries store an identity
+snapshot and clear rows when the dashboard selection changes. Link opening resolves only stored,
+validated HTTPS fields on the current selection; headers and executable commands are not exposed.

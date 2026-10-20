@@ -1,0 +1,31 @@
+{
+  "fetched_utc": "2026-10-20T11:49:17.825301+00:00",
+  "method": "Actual publisher responses fetched with TLS-verified curl using environment trust store, then read through the unmodified production fetch_text cache. No fixture providers or synthetic builds.",
+  "sources": [
+    {
+      "url": "https://releases.grapheneos.org/oriole-stable",
+      "bytes": 36,
+      "sha256": "6d6a25c0c0bd4bba14d8324d2e8ede6a6eafe03cc47ea20fd291da1557cf6285"
+    },
+    {
+      "url": "https://download.lineageos.org/api/v2/devices/oriole",
+      "bytes": 283,
+      "sha256": "b9ced1b7fd9df7eeefb5b9f4e5393ff8d7dd00682e5409a4a414777f414ea430"
+    },
+    {
+      "url": "https://download.lineageos.org/api/v2/devices/oriole/builds",
+      "bytes": 7730,
+      "sha256": "ebbfb1e6a5cf41aeaacd9ede56576f31fe3dce9e1fbf1fcad7be4a88ab91cf08"
+    },
+    {
+      "url": "https://dl.twrp.me/lavender/",
+      "bytes": 13719,
+      "sha256": "990175686074a0a6adc49990ce205ebedb19d94bc83ef7f61480cf0750f4a5c2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ArrowOS/arrow_ota/master/arrow-13.1_gapps_builds_official.json",
+      "bytes": 17874,
+      "sha256": "d1066af58eca126e68cc7c36a91fb8a6379c951f26c2041439e11782a09cc371"
+    }
+  ]
+}

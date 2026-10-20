@@ -21,6 +21,8 @@ from .theme import ThemeManager
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path("docs/screenshots"))
+    parser.add_argument("--pages", nargs="+", choices=["dashboard", "settings", "roms", "recovery"], default=["dashboard", "settings"])
+    parser.add_argument("--catalog-query", default="", help="run actual providers for this codename before capture")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     app = QApplication([sys.argv[0]])
@@ -32,7 +34,7 @@ def main():
         runtime = Runtime(app, theme=theme)
         window = runtime.engine.rootObjects()[0]
         targets = [(mode, page, size) for size in [(1260, 900), (920, 680)]
-                   for mode in ["dark", "light"] for page in ["dashboard", "settings"]]
+                   for mode in ["dark", "light"] for page in args.pages]
         attempts = 0
 
         def capture():
@@ -59,6 +61,9 @@ def main():
                     platform=platform.platform(), python=platform.python_version(), qt=qVersion(),
                     state=runtime.dashboard.state, tools_ready=runtime.dashboard.toolsReady,
                     devices=len(runtime.dashboard.devices),
+                    catalog_query=args.catalog_query,
+                    catalog={name: dict(state=c.state, rows=c.totalCount, errors=len(c.errors))
+                             for name,c in [("roms",runtime.rom_catalog),("recovery",runtime.recovery_catalog)]},
                     method="QQuickWindow.grabWindow, actual backend, no injected data; offscreen software rendering",
                 ), indent=2) + "\n")
                 app.quit()
@@ -66,15 +71,20 @@ def main():
         def await_discovery():
             nonlocal attempts
             attempts += 1
-            if runtime.dashboard.busy:
-                if attempts > 1200:
-                    print("Discovery did not finish within 60 seconds", file=sys.stderr)
+            if runtime.dashboard.busy or runtime.rom_catalog.busy or runtime.recovery_catalog.busy:
+                if attempts > 6000:
+                    print("Discovery did not finish within 300 seconds", file=sys.stderr)
                     app.exit(1)
                 else:
                     QTimer.singleShot(50, await_discovery)
             else:
                 capture()
 
+        if args.catalog_query:
+            if "roms" in args.pages:
+                runtime.rom_catalog.search(args.catalog_query)
+            if "recovery" in args.pages:
+                runtime.recovery_catalog.search(args.catalog_query)
         QTimer.singleShot(50, await_discovery)
         result = app.exec()
         runtime.shutdown()

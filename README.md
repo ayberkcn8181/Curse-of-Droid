@@ -79,10 +79,12 @@ checksums, so only the download size can be verified.
 ```
 
 The Qt Quick workspace includes a live Dashboard, explicit device selection, device details, session activity
-and Appearance settings. Light, dark and system themes apply immediately; theme, accent, workspace scale and
+and Appearance settings. The QML ROM Library and Recovery Manager use the existing provider registry
+with streaming searches, filters, metadata details, cancellation and HTTPS source links. Catalog matches
+do not certify installation compatibility. Light, dark and system themes apply immediately; theme, accent, workspace scale and
 motion preferences persist. Discovery uses the same read-only Python services as the CLI and runs in workers.
 
-ROM/recovery discovery, bootloader and installation remain available through **Existing workflows**, or run
+Bootloader, downloads, GSI tools and installation remain available through **Existing workflows**, or run
 `curseofdroid-gui --classic`. QML pages still awaiting migration are visibly disabled. The existing installer is
 early-development software; see [the audit and safety gaps](docs/DEVELOPMENT_ROADMAP.md) before using it.
 

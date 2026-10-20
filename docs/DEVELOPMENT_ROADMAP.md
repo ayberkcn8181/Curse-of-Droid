@@ -103,3 +103,8 @@ is merged without the owner's approval. A mocked test or offscreen capture is no
   components, real theme screenshots and integration/GUI tests are present. Existing backend and CLI
   remain intact; legacy Widgets workflows are preserved in `gui/widgets.py`.
 - 110 local tests pass; coverage 67.50%; QML wheel and Linux frozen GUI render/CLI smoke pass. P0 flash safety work and the remaining QML pages are still open; no claim of stable readiness.
+
+- QML ROM/recovery catalog slice on `feat/qml-rom-recovery-catalog`, stacked on UI #2: shared streaming
+  provider controller, filters, details, source links, explicit unknown/provenance semantics, cancellation
+  and stale-device invalidation. See QML_CATALOG.md for tests, real screenshot provenance and limits.
+  Dedicated verified downloads, profile-aware QML GSIs and installation methods remain follow-ups.

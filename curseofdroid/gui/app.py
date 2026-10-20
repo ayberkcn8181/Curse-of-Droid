@@ -11,16 +11,21 @@ from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtWidgets import QApplication
 
 from .. import __version__
+from .catalog import Catalog
 from .dashboard import Dashboard
 from .theme import ThemeManager
 from .widgets import MainWindow  # Backwards-compatible import for existing integrations and tests.
 
 
 class Runtime:
-    def __init__(self, app, theme=None, dashboard=None, auto_discover=True):
+    def __init__(self, app, theme=None, dashboard=None, auto_discover=True, rom_catalog=None, recovery_catalog=None):
         self.app = app
         self.theme = theme if theme is not None else ThemeManager()
         self.dashboard = dashboard if dashboard is not None else Dashboard()
+        self.rom_catalog = rom_catalog if rom_catalog is not None else Catalog("rom", self.dashboard)
+        self.recovery_catalog = recovery_catalog if recovery_catalog is not None else Catalog("recovery", self.dashboard)
+        for catalog in (self.rom_catalog, self.recovery_catalog):
+            catalog.operationReported.connect(self.dashboard.record_catalog_event)
         self.windows = []
         if QQuickStyle.name() != "Basic":
             QQuickStyle.setStyle("Basic")
@@ -29,6 +34,8 @@ class Runtime:
         self.engine.rootContext().setContextProperty("backend", self.dashboard)
         self.engine.rootContext().setContextProperty("appVersion", __version__)
         self.engine.rootContext().setContextProperty("autoDiscover", auto_discover)
+        self.engine.rootContext().setContextProperty("romCatalog", self.rom_catalog)
+        self.engine.rootContext().setContextProperty("recoveryCatalog", self.recovery_catalog)
         self.dashboard.legacyRequested.connect(self.open_legacy)
         self.engine.load(QUrl.fromLocalFile(str(Path(__file__).parent / "qml" / "Main.qml")))
         if not self.engine.rootObjects():

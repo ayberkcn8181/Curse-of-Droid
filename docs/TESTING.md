@@ -59,3 +59,11 @@ The first frozen GUI run exposed a missing QtQuick/QtOpenGL dependency; the pack
 collects QtQuick explicitly and retains QtOpenGL. The rebuilt Linux GUI `--smoke-test` exited 0 with empty stderr/stdout, and the frozen CLI help/version exited 0.
 Deterministic engine teardown also fixes shutdown-time null context warnings. Both failures received
 regression coverage (source entry-point subprocess smoke plus frozen GUI validation).
+
+## QML catalog slice
+
+See [QML_CATALOG.md](QML_CATALOG.md) for the 31 additional controlled provider/Qt cases, screenshot
+provenance and cancellation limits. On the UI-based catalog branch, **141 tests passed**, with
+**1997/2901 covered statements (68.84%)**. Wheel asset inclusion, source smoke, clean isolated frozen
+Linux GUI smoke, CLI help/version and compile/diff checks passed. Other native release builds are
+not certified by these results. No physical device was used and no destructive command was executed.

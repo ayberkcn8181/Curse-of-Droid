@@ -28,10 +28,10 @@ ApplicationWindow {
     palette.toolTipBase: theme.colors.elevated
     palette.toolTipText: theme.colors.text
     property string currentPage: "dashboard"
-    readonly property var pageKeys: ["dashboard", "device", "activity", "settings"]
-    readonly property var pageTitles: [qsTr("Dashboard"), qsTr("My device"), qsTr("Activity & logs"), qsTr("Settings")]
+    readonly property var pageKeys: ["dashboard", "device", "activity", "settings", "roms", "recovery"]
+    readonly property var pageTitles: [qsTr("Dashboard"), qsTr("My device"), qsTr("Activity & logs"), qsTr("Settings"), qsTr("ROM library"), qsTr("Recovery manager")]
     onClosing: function(close) {
-        if (backend.busy) {
+        if (backend.busy || romCatalog.busy || recoveryCatalog.busy) {
             close.accepted = false
             toast.show(qsTr("An operation is running. Wait for it to finish before closing."))
         }
@@ -66,10 +66,12 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.margins: 30
                 currentIndex: window.pageKeys.indexOf(window.currentPage)
-                DashboardPage { onDetailsRequested: window.currentPage = "device"; onActivityRequested: window.currentPage = "activity" }
+                DashboardPage { onCatalogRequested: window.currentPage = "roms"; onRecoveryRequested: window.currentPage = "recovery"; onDetailsRequested: window.currentPage = "device"; onActivityRequested: window.currentPage = "activity" }
                 DevicePage {}
                 ActivityPage {}
                 SettingsPage {}
+                CatalogPage { catalog: romCatalog }
+                CatalogPage { catalog: recoveryCatalog; recovery: true }
             }
         }
     }
@@ -84,5 +86,7 @@ ApplicationWindow {
         width: Math.min(window.width - 80, 500)
     }
     Connections { target: backend; function onNotice(message) { toast.show(message) } }
+    Connections { target: romCatalog; function onNotice(message) { toast.show(message) } }
+    Connections { target: recoveryCatalog; function onNotice(message) { toast.show(message) } }
     Connections { target: theme; function onPreferenceError(message) { toast.show(message) } }
 }

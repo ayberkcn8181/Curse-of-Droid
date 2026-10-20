@@ -8,3 +8,5 @@
   reusable components and persisted light/dark/system themes, accent, scaling and motion preferences.
 - Preserve existing Widgets catalog/installation workflows and CLI; collect QML/SVG assets in packages.
 - Add offscreen theme screenshots, settings/restart, transport-integration and keyboard/render tests.
+- Add read-only QML ROM/recovery catalogs over the full provider registry, with streaming search,
+  filters, metadata details, source links, cancellation and selected-device result invalidation.

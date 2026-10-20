@@ -189,6 +189,11 @@ class Dashboard(QObject):
         self.changed.emit()
         self.notice.emit(self._error)
 
+    @Slot(str)
+    def record_catalog_event(self, text):
+        self._event(text)
+        self.changed.emit()
+
     @Slot(int)
     def openLegacy(self, page):
         if not self._busy and page in (0, 1, 2, 3):
