@@ -71,3 +71,11 @@ Signatures/trusted installation manifests, profile-aware QML GSI/wizard pages, d
 management, queue reordering/concurrency, automatic bounded retries, native desktop accessibility/GPU
 validation and translations remain separate stages. Existing P0 flash/guard/executor findings remain
 open. A completed download does not approve installing it on any connected device.
+
+## Native CI correction
+
+The first recovered commit's Windows jobs found a test-only path representation mismatch:
+QUrl.toLocalFile() returns forward slashes, while str(Path) uses native backslashes. The folder target
+was correct. The regression now compares resolved Path objects, preserving the same target/local-URL
+checks on every OS. Product behavior and screenshot rendering are unchanged. The exact final-head
+matrix is recorded in the PR.

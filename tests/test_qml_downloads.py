@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import threading
+from pathlib import Path
 
 import pytest
 
@@ -271,7 +272,7 @@ def test_only_recorded_download_folders_can_be_opened(app, manager, monkeypatch)
     manager.openFolder("https://arbitrary.example.org")
     assert not opened
     manager.openFolder(manager.rows[0]["id"])
-    assert opened[0].isLocalFile() and opened[0].toLocalFile() == str(manager._path(manager._items[0]).parent.resolve())
+    assert opened[0].isLocalFile() and Path(opened[0].toLocalFile()).resolve() == manager._path(manager._items[0]).parent.resolve()
 
 
 def find_item(item, name):
