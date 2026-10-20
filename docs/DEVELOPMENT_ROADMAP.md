@@ -93,3 +93,13 @@ Unit tests should never require those services or a real device.
 Each stage has its own branch and PR with executed test results, important changed files, screenshots
 for UI, remaining gaps, and actual platform status. Dependent PRs explicitly name their base. No PR
 is merged without the owner's approval. A mocked test or offscreen capture is not real hardware validation.
+
+## Progress after the audit
+
+- Audit published as PR #1, `docs/repository-audit-baseline` → main. Its CI passed. Awaiting owner review;
+  no merge has been performed.
+- First UI slice implemented on `feat/qml-dashboard-theme`, based on the audit branch. Four real QML
+  pages, theme/settings manager, read-only backend view model, explicit device selection, common
+  components, real theme screenshots and integration/GUI tests are present. Existing backend and CLI
+  remain intact; legacy Widgets workflows are preserved in `gui/widgets.py`.
+- 110 local tests pass; coverage 67.50%; QML wheel and Linux frozen GUI render/CLI smoke pass. P0 flash safety work and the remaining QML pages are still open; no claim of stable readiness.

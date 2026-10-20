@@ -78,8 +78,21 @@ checksums, so only the download size can be verified.
 .venv/bin/curseofdroid-gui
 ```
 
-Four pages — Device, Bootloader, ROMs & recoveries, Install — over the same core as the CLI. Long operations run
-in the background; every risky step opens a dialog that needs `yes` typed in.
+The Qt Quick workspace includes a live Dashboard, explicit device selection, device details, session activity
+and Appearance settings. Light, dark and system themes apply immediately; theme, accent, workspace scale and
+motion preferences persist. Discovery uses the same read-only Python services as the CLI and runs in workers.
+
+ROM/recovery discovery, bootloader and installation remain available through **Existing workflows**, or run
+`curseofdroid-gui --classic`. QML pages still awaiting migration are visibly disabled. The existing installer is
+early-development software; see [the audit and safety gaps](docs/DEVELOPMENT_ROADMAP.md) before using it.
+
+See [the design system](docs/UI_DESIGN_SYSTEM.md) and [testing guide](docs/TESTING.md). Actual offscreen captures
+(no injected devices) are in [docs/screenshots](docs/screenshots).
+
+```bash
+QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python -m curseofdroid.gui.app --smoke-test
+QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python -m curseofdroid.gui.capture
+```
 
 ## Platforms
 

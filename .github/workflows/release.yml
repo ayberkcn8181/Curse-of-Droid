@@ -20,6 +20,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -36,6 +37,11 @@ jobs:
         run: |
           d=$(ls -d dist/curseofdroid-*/ | head -1)
           "$d"curseofdroid/curseofdroid* --version
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            "$d"curseofdroid-gui.app/Contents/MacOS/curseofdroid-gui --smoke-test
+          else
+            "$d"curseofdroid-gui/curseofdroid-gui* --smoke-test
+          fi
           "$d"curseofdroid/curseofdroid* find lavender --project TWRP
       # The user's machine: no Python, no build-machine paths, no system CA store. A frozen Python that looks
       # for certificates at the build machine's path fails every HTTPS request there (0.1.0a1 did).

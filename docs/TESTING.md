@@ -28,3 +28,34 @@ Hardware matrix to record before future installation testing:
 
 Coverage thresholds should start near the measured baseline and increase after adding meaningful tests.
 Use controlled HTTP responses for integrity/resume cases and queued Qt integration tests for workers.
+
+## QML slice validation
+
+`tests/test_qml.py` adds real engine rendering and mouse/keyboard events, controlled ADB/fastboot runners
+through the real detection parser, multi-device selection, disconnect/unknown/unauthorized/error states,
+worker completion/responsiveness, shutdown deferral, tool setup, live system-theme notifications, settings
+restoration in a new Python process, semantic contrast and retained Widgets routing.
+
+```
+QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python -m pytest -q \
+  --cov=curseofdroid --cov-report=term --cov-report=json:coverage.json --cov-fail-under=65
+110 passed in 3.12s; statement coverage 1772/2625 = 67.50%
+```
+
+The threshold is 65%, aligned with the measured baseline. Coverage includes screenshot/entry-point code
+not exercised by unit tests; it does not measure QML line coverage. Unit/integration tests do not access a
+physical device. CI now renders QML without USB probes and uploads coverage XML for each matrix job.
+
+`python -m build --wheel --no-isolation` succeeded; package inspection includes QML and SVG assets.
+`python -m compileall -q curseofdroid` and `git diff --check` passed.
+The source GUI `--smoke-test` loads and renders QML with USB probing disabled.
+
+A real `install_platform_tools()` attempt in the development environment failed with
+`CERTIFICATE_VERIFY_FAILED: self-signed certificate in certificate chain`. No TLS bypass was applied.
+Real USB device discovery, flashing, native Windows/macOS integration and packaged GPU behavior remain
+untested. Screenshot evidence shows the actual no-tools/no-device state rather than a fixture device.
+
+The first frozen GUI run exposed a missing QtQuick/QtOpenGL dependency; the packaging configuration now
+collects QtQuick explicitly and retains QtOpenGL. The rebuilt Linux GUI `--smoke-test` exited 0 with empty stderr/stdout, and the frozen CLI help/version exited 0.
+Deterministic engine teardown also fixes shutdown-time null context warnings. Both failures received
+regression coverage (source entry-point subprocess smoke plus frozen GUI validation).

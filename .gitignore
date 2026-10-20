@@ -4,3 +4,9 @@ dist/
 __pycache__/
 .pytest_cache/
 .venv/
+
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+coverage.json
