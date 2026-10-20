@@ -60,7 +60,7 @@ _UNLOCK = {("flashing", "unlock"), ("oem", "unlock"), ("flashing", "get_unlock_a
 _WIPEABLE = {"userdata", "metadata", "cache"}
 _REBOOT_TARGETS = {"bootloader", "recovery", "fastboot"}
 _SERIAL = re.compile(r"[A-Za-z0-9_.:\[\]-]{1,256}")
-_VARIABLE = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
+_VARIABLE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:-]{0,127}")
 _UNLOCK_CODE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]{0,127}")
 
 

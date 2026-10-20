@@ -72,6 +72,9 @@ FASTBOOT_REJECTED = [
     ["continue", "erase", "modem"],
     ["getvar", "all", "erase", "modem"],
     ["getvar", "--slot=all"],
+    ["getvar", "-w"],
+    ["getvar", "--force"],
+    ["getvar", "-s"],
     ["getvar", "all; reboot"],
     ["devices", "-l", "flash", "modem", "modem.img"],
     ["set_active", "a", "flash", "modem", "modem.img"],
@@ -223,6 +226,7 @@ class QuietUI:
     ("fastboot", ["reboot", "bootloader", "flash", "modem", "m.img"]),
     ("fastboot", ["-w", "flash", "modem", "m.img"]),
     ("fastboot", ["--force", "flash", "boot", "b.img"]),
+    ("fastboot", ["getvar", "-w"]),
     ("fastboot", ["oem", "unlock", "CODE", "erase", "modem"]),
 ])
 def test_invalid_later_step_rejects_entire_plan_before_any_runner_call(tool, args):
