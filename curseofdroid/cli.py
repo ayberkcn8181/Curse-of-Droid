@@ -21,6 +21,7 @@ from .vendors import vendor_for
 from .platform.net import VerificationError, download
 from .platform.paths import downloads_dir
 from .platform.tools import find_tools, install_platform_tools
+from .transport.base import TransportError
 
 _LABELS = [
     ("mode", "Mode"), ("brand", "Brand"), ("market_name", "Name"), ("model", "Model"), ("codename", "Codename"),
@@ -398,7 +399,11 @@ def main(argv=None) -> int:
     dr.add_argument("action", nargs="?", choices=["status", "install"], default="status")
     dr.set_defaults(func=cmd_drivers)
     args = ap.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except TransportError as error:
+        print(str(error), file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 
 from ..transport.adb import Adb
-from ..transport.base import Runner, subprocess_runner
+from ..transport.base import Runner, TransportError, subprocess_runner
 from ..transport.fastboot import Fastboot
 from .profile import DeviceProfile, Mode, from_fastboot, from_props
 
@@ -49,7 +49,10 @@ def detect(adb_exe, fastboot_exe, runner: Runner = subprocess_runner) -> list[De
 
 
 def _battery_from_shell(adb: Adb) -> int | None:
-    out = adb.shell("cat /sys/class/power_supply/battery/capacity 2>/dev/null || dumpsys battery 2>/dev/null")
+    try:
+        out = adb.shell("cat /sys/class/power_supply/battery/capacity 2>/dev/null || dumpsys battery 2>/dev/null")
+    except TransportError:
+        return None  # Battery information is optional, especially in recovery.
     out = out.strip()
     if out.isdigit():
         return int(out)

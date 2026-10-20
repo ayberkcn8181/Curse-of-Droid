@@ -44,13 +44,13 @@ def parse_getvar_all(text: str) -> dict[str, str]:
 
 class Fastboot(Tool):
     def devices(self) -> list[tuple[str, str]]:
-        return parse_devices(self.run("devices").stdout)
+        return parse_devices(self.read("devices").stdout)
 
     def getvar_all(self) -> dict[str, str]:
-        r = self.run("getvar", "all", timeout=60)
+        r = self.read("getvar", "all", timeout=60)
         return parse_getvar_all(r.stderr + "\n" + r.stdout)
 
     def getvar(self, name: str) -> str | None:
-        r = self.run("getvar", name)
+        r = self.read("getvar", name)
         vars_ = parse_getvar_all(r.stderr + "\n" + r.stdout)
         return vars_.get(name)
