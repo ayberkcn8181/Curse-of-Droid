@@ -51,6 +51,13 @@ def _identity(s: os.stat_result) -> tuple[int, ...]:
     return (s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
 
 
+def _path_matches(s: os.stat_result, opened: tuple[int, ...]) -> bool:
+    # Windows stat/lstat can expose creation time as ctime while fstat exposes
+    # change time (CPython #157671). Compare ctime only within the same API.
+    # Full handle identities, including ctime, are retained across file uses.
+    return _identity(s)[:4] == opened[:4]
+
+
 def _regular(path: Path) -> os.stat_result:
     s = path.lstat()
     if not stat.S_ISREG(s.st_mode):
@@ -127,19 +134,24 @@ def require_artifact(path: Path, kind: str) -> ArtifactRequirement:
         if before.st_size > MAX_MANIFEST:
             raise ArtifactError("artifact manifest is too large")
         with _open_regular(reference) as stream:
+            opened = _identity(os.fstat(stream.fileno()))
+            if not _path_matches(before, opened):
+                raise ArtifactError("artifact manifest changed before reading")
             raw = stream.read(MAX_MANIFEST + 1)
-            if len(raw) > MAX_MANIFEST or _identity(os.fstat(stream.fileno())) != _identity(before):
+            if len(raw) > MAX_MANIFEST or _identity(os.fstat(stream.fileno())) != opened:
                 raise ArtifactError("artifact manifest changed while reading")
         if _identity(_regular(reference)) != _identity(before):
             raise ArtifactError("artifact manifest changed while reading")
         manifest = _parse(json.loads(raw.decode("utf-8"), object_pairs_hook=_unique), path.name, kind)
         before = _regular(path)
         canonical = path.resolve(strict=True)
-        if _identity(_regular(canonical)) != _identity(before):
-            raise ArtifactError("installation input changed while planning")
-        if before.st_size != manifest.size:
-            raise ArtifactError(f"{path.name}: file size does not match the manifest")
-        return ArtifactRequirement(canonical, manifest, _identity(before))
+        with _open_regular(canonical) as stream:
+            opened = _identity(os.fstat(stream.fileno()))
+            if not _path_matches(before, opened) or _identity(_regular(canonical)) != _identity(before):
+                raise ArtifactError("installation input changed while planning")
+            if opened[2] != manifest.size:
+                raise ArtifactError(f"{path.name}: file size does not match the manifest")
+        return ArtifactRequirement(canonical, manifest, opened)
     except (OSError, UnicodeError, ValueError, RecursionError):
         raise ArtifactError(f"{path.name}: need a readable file and valid {reference.name}; see docs/INSTALL_PREFLIGHT.md") from None
 
@@ -148,7 +160,8 @@ def verify_artifact(requirement: ArtifactRequirement) -> None:
     """Re-hash the current file against the captured reference, never a saved verdict."""
     path, manifest = requirement.path, requirement.manifest
     try:
-        if _identity(_regular(path)) != requirement.identity:
+        before = _regular(path)
+        if not _path_matches(before, requirement.identity):
             raise ArtifactError(f"{path.name}: file changed since planning; create a new plan")
         digest, total = hashlib.sha256(), 0
         with _open_regular(path) as stream:
@@ -161,7 +174,7 @@ def verify_artifact(requirement: ArtifactRequirement) -> None:
                 digest.update(block)
             if _identity(os.fstat(stream.fileno())) != requirement.identity:
                 raise ArtifactError(f"{path.name}: file changed during verification")
-        if _identity(_regular(path)) != requirement.identity:
+        if _identity(_regular(path)) != _identity(before):
             raise ArtifactError(f"{path.name}: file was replaced during verification")
         if total != manifest.size or digest.hexdigest() != manifest.sha256:
             raise ArtifactError(f"{path.name}: SHA-256/size does not match the captured manifest")

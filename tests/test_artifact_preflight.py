@@ -64,7 +64,8 @@ def test_invalid_or_saved_verified_metadata_cannot_authorize_a_file(rom, artifac
 
 
 @pytest.mark.parametrize("raw", [b"[]", b"{}", b"\xff", b'{"version":1,"version":1}',
-                                  b" " * (MAX_MANIFEST + 1), b"[" * 2000])
+                                  b" " * (MAX_MANIFEST + 1), b"[" * 2000],
+                         ids=["array", "missing-fields", "invalid-utf8", "duplicate-fields", "oversize", "deep-nesting"])
 def test_invalid_duplicate_or_unbounded_manifest_input_is_refused(rom, raw):
     manifest_path(rom).write_bytes(raw)
     with pytest.raises(ArtifactError):
@@ -142,6 +143,25 @@ def test_replacement_between_stat_and_open_is_refused(rom, monkeypatch):
     monkeypatch.setattr(artifacts, "_open_regular", replace_before_open)
     with pytest.raises(ArtifactError, match="changed before verification"):
         verify_artifact(requirement)
+
+
+def test_different_path_and_handle_ctime_semantics_do_not_disable_identity_checks(rom, monkeypatch):
+    from curseofdroid.flash import artifacts
+
+    original_regular = artifacts._regular
+
+    def path_stat(path):
+        s = original_regular(path)
+        return SimpleNamespace(st_dev=s.st_dev, st_ino=s.st_ino, st_size=s.st_size,
+                               st_mtime_ns=s.st_mtime_ns, st_ctime_ns=s.st_ctime_ns - 1_000_000)
+
+    monkeypatch.setattr(artifacts, "_regular", path_stat)
+    requirement = require_artifact(rom, "rom")
+    verify_artifact(requirement)
+    # A changed handle identity is still refused even when path metadata matches.
+    altered = replace(requirement, identity=requirement.identity[:-1] + (requirement.identity[-1] - 1,))
+    with pytest.raises(ArtifactError, match="changed before verification"):
+        verify_artifact(altered)
 
 
 def test_file_changes_during_streaming_are_refused(rom, monkeypatch):

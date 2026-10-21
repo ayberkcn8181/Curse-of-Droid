@@ -56,6 +56,10 @@ installation remains blocked. Do not fill in a locally computed digest simply to
    It also refuses command-level device selectors in a bound installation, including selectors added
    after initial validation. Replacing the JSON sidecar cannot replace the in-memory reference.
 
+File identity retains the complete open-handle timestamp tuple. Path-to-handle comparisons use compatible
+identity/size/mtime fields; ctime is compared within the same API, avoiding the differing Windows meanings
+reported in [CPython #157671](https://github.com/python/cpython/issues/157671). SHA-256 checks remain mandatory.
+
 Widgets execution already runs in a worker. Failed plan creation clears the previous plan and disables
 its Install action. QML Dashboard/themes/catalog/downloads retain their existing presentation; this
 backend change does not expose a QML flash/unlock primitive or enable an installation wizard.
