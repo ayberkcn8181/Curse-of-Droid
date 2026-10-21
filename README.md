@@ -34,10 +34,12 @@ Motorola → `fastboot oem unlock`). Guided: Xiaomi (Mi Unlock), Samsung (Downlo
 without an official method (e.g. current OPPO/realme, Huawei/Honor) the tool says so — it does not claim the
 phone can't be unlocked, and if the bootloader is unlocked by other means it detects that and continues.
 
-Install through a custom recovery:
+Install through a custom recovery. Every selected ROM, recovery and add-on needs an individual reviewed
+SHA-256 `.manifest.json` sidecar first; see [installation preflight](docs/INSTALL_PREFLIGHT.md).
+Downloading a file or matching its size does not satisfy this requirement.
 
 ```bash
-curseofdroid install --rom ROM.zip --recovery twrp.img --recovery-name TWRP --dry-run   # print the plan only
+curseofdroid install --rom ROM.zip --recovery twrp.img --recovery-name TWRP --dry-run   # verify files and print the plan
 curseofdroid install --rom ROM.zip --recovery twrp.img --recovery-name TWRP --extra gapps.zip
 ```
 
@@ -68,8 +70,11 @@ curseofdroid gsi --install system-td-arm64-vanilla.img --dry-run
 ```
 
 On phones with dynamic partitions the system image is written from fastbootd. vbmeta is not touched by default;
-phones that need verified boot disabled for a GSI need their own device-specific step. TrebleDroid publishes no
-checksums, so only the download size can be verified.
+phones that need verified boot disabled for a GSI need their own device-specific step. The current TrebleDroid
+adapter provides download size metadata rather than a raw-image SHA-256 reference.
+Installation requires a separate reviewed reference for the exact raw `.img`, confirmed device/slot/layout
+information and arm64-v8a. A `.img.xz` is not implicitly extracted by `--install`. See
+[installation preflight](docs/INSTALL_PREFLIGHT.md) for supported states and remaining checks.
 
 ## Desktop app
 

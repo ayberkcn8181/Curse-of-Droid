@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication, QInputDialog  # noqa: E402
 from curseofdroid.device.detect import Detected  # noqa: E402
 from curseofdroid.device.profile import DeviceProfile  # noqa: E402
 from curseofdroid.flash.plan import Step  # noqa: E402
+from curseofdroid.flash.executor import validate  # noqa: E402
 from curseofdroid.gui.app import MainWindow  # noqa: E402
 
 
@@ -45,3 +46,29 @@ def test_confirm_from_worker_thread_needs_typed_yes(app, monkeypatch):
     while t.is_alive():
         app.processEvents()
     assert results == [True, False]  # "y" is not enough
+
+
+def test_failed_plan_clears_the_previous_install_action(app, tmp_path, artifact_manifest, monkeypatch):
+    import zipfile
+
+    path = tmp_path / "rom.zip"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("payload.bin", b"controlled payload")
+        archive.writestr("META-INF/com/android/metadata", "pre-device=lavender\n")
+    artifact_manifest(path)
+    w = MainWindow()
+    w.device = Detected("S1", "android", DeviceProfile(serial="S1", mode="android", codenames=["lavender"],
+                                                     bootloader_unlocked="yes"))
+    w.rom_edit.setText(str(path))
+    w.make_plan()
+    assert w.plan is not None and w.install_btn.isEnabled()
+    validate(w.plan)
+    path.with_name(path.name + ".manifest.json").unlink()
+    w.make_plan()
+    assert w.plan is None and not w.install_btn.isEnabled()
+    assert "manifest.json" in w.plan_view.toPlainText()
+    messages = []
+    monkeypatch.setattr(w, "fail", messages.append)
+    w.run_install()
+    assert messages == ["Create a current installation plan first."]
+    w.close()

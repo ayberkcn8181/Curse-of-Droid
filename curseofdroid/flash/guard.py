@@ -8,6 +8,7 @@ bootloader is never done automatically: relocking with a non-stock OS bricks man
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import Sequence
 
 # Partitions an install may write (with or without _a/_b slot suffix).
@@ -35,6 +36,13 @@ _NEVER = [("flashing", "lock"), ("oem", "lock"), ("oem", "relock"), ("flashing",
 
 class GuardError(Exception):
     pass
+
+
+@dataclass(frozen=True)
+class FileUse:
+    path: str
+    operation: str
+    partition: str = ""
 
 
 def base_name(partition: str) -> str:
@@ -124,7 +132,7 @@ def _fastboot_options(a: list[str]) -> tuple[list[str], set[str]]:
     return a, seen
 
 
-def _check_adb(a: list[str]) -> None:
+def _check_adb(a: list[str]) -> FileUse | None:
     cmd = a[0]
     if cmd == "reboot":
         if len(a) == 1 or (len(a) == 2 and a[1] in _REBOOT_TARGETS):
@@ -133,14 +141,14 @@ def _check_adb(a: list[str]) -> None:
     if cmd == "sideload":
         _arity(a, 2)
         _file_operand(a[1])
-        return
+        return FileUse(a[1], "sideload")
     if a in (["devices"], ["devices", "-l"], ["get-state"], ["get-serialno"]):
         return
     raise GuardError(f"refusing unknown adb plan command '{cmd}'; shell commands are not allowed")
 
 
 def _check_fastboot(a: list[str], *, fastbootd: bool, logical_ok: bool, allow_unlock: bool,
-                    allow_unlock_placeholder: bool) -> None:
+                    allow_unlock_placeholder: bool) -> FileUse | None:
     if any(x.lower().split("=", 1)[0] in {"--disable-verity", "--disable-verification"} for x in a):
         raise GuardError("refusing to disable verified boot flags without a ROM-specific override")
     a, options = _fastboot_options(a)
@@ -183,6 +191,7 @@ def _check_fastboot(a: list[str], *, fastbootd: bool, logical_ok: bool, allow_un
     elif cmd == "boot":
         _arity(a, 2)
         _file_operand(a[1])
+        return FileUse(a[1], "boot")
     elif cmd in {"set_active", "--set-active"}:
         _arity(a, 2)
         if a[1] not in {"a", "b"}:
@@ -201,12 +210,13 @@ def _check_fastboot(a: list[str], *, fastbootd: bool, logical_ok: bool, allow_un
         check_partition(part, fastbootd=fastbootd or logical_ok)
         if cmd == "flash":
             _file_operand(a[2])
+            return FileUse(a[2], "flash", part)
     else:
         raise GuardError(f"refusing unknown fastboot command '{cmd}'")
 
 
 def check_command(tool: str, args: Sequence[str], *, fastbootd: bool = False, logical_ok: bool = False,
-                  allow_unlock: bool = False, allow_unlock_placeholder: bool = False) -> None:
+                  allow_unlock: bool = False, allow_unlock_placeholder: bool = False) -> FileUse | None:
     """Raise GuardError unless the complete argv matches a supported plan command.
 
     allow_unlock_placeholder is for plan validation before the executor asks for a
@@ -216,7 +226,7 @@ def check_command(tool: str, args: Sequence[str], *, fastbootd: bool = False, lo
         raise GuardError(f"unknown tool {tool}")
     a = _arguments(tool, args)
     if tool == "adb":
-        _check_adb(a)
+        return _check_adb(a)
     else:
-        _check_fastboot(a, fastbootd=fastbootd, logical_ok=logical_ok, allow_unlock=allow_unlock,
-                        allow_unlock_placeholder=allow_unlock_placeholder)
+        return _check_fastboot(a, fastbootd=fastbootd, logical_ok=logical_ok, allow_unlock=allow_unlock,
+                              allow_unlock_placeholder=allow_unlock_placeholder)

@@ -247,12 +247,12 @@ def test_invalid_later_step_rejects_entire_plan_before_any_runner_call(tool, arg
 
 def test_changed_command_is_rechecked_and_reported_before_transport():
     calls = []
-    command = Command("fastboot", ["flash", "boot", "boot.img"])
-    plan = Plan("test", [Step("write", "", "system-write", [command])])
+    command = Command("fastboot", ["erase", "userdata"])
+    plan = Plan("test", [Step("write", "", "data-loss", [command])])
 
     class ChangingUI(QuietUI):
         def confirm(self, step):
-            command.args = ["flash", "modem", "modem.img"]
+            command.args = ["erase", "modem"]
             return True
 
     def runner(argv, timeout):

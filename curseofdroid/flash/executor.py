@@ -5,12 +5,14 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Protocol
 
 from ..transport.adb import Adb
 from ..transport.base import Runner, subprocess_runner
 from ..transport.fastboot import Fastboot
-from .guard import GuardError, check_command
+from .artifacts import ArtifactError, ArtifactRequirement, verify_artifact
+from .guard import FileUse, GuardError, base_name, check_command
 from .plan import Plan, Step
 
 
@@ -32,10 +34,39 @@ class StepFailed(Exception):
 
 def validate(plan: Plan) -> None:
     """Every command of the plan must pass the guard before the first one runs."""
+    files = {}
     for step in plan.steps:
         for c in step.commands:
-            check_command(c.tool, c.args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
-                          allow_unlock=step.unlock, allow_unlock_placeholder=bool(step.ask))
+            use = check_command(c.tool, c.args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
+                                allow_unlock=step.unlock, allow_unlock_placeholder=bool(step.ask))
+            if plan.target and c.args[:1] in (["-s"], ["-t"]):
+                raise GuardError("a bound installation plan cannot override its device selector")
+            if use:
+                artifact = _required_file(plan, use)
+                files[artifact.path] = artifact
+    for artifact in files.values():
+        verify_artifact(artifact)
+
+
+def _required_file(plan: Plan, use: FileUse) -> ArtifactRequirement:
+    path = Path(use.path)
+    matches = [a for a in plan.artifacts if a.path == path]
+    if not path.is_absolute() or len(matches) != 1:
+        raise ArtifactError("every image/package command needs one captured artifact manifest and an absolute path")
+    artifact = matches[0]
+    if not plan.target or not plan.target.serial or not plan.target.codenames:
+        raise ArtifactError("file operations require an explicit installation target")
+    if not {d.lower() for d in plan.target.codenames}.intersection(d.lower() for d in artifact.manifest.devices):
+        raise ArtifactError("artifact manifest does not match the bound installation target")
+    kind = artifact.manifest.kind
+    if (use.operation == "sideload" and kind not in {"rom", "addon"}
+            or use.operation == "boot" and kind != "recovery"
+            or use.operation == "flash" and kind not in {"gsi", "recovery"}
+            or kind == "gsi" and (use.operation != "flash" or base_name(use.partition) != "system")
+            or kind == "recovery" and use.operation == "flash" and base_name(use.partition) not in {
+                "boot", "init_boot", "vendor_boot", "recovery", "ramdisk", "recovery_ramdisk", "recovery_vendor"}):
+        raise ArtifactError("artifact manifest kind does not match the planned operation/partition")
+    return artifact
 
 
 class Executor:
@@ -48,8 +79,10 @@ class Executor:
 
     def run(self, plan: Plan) -> None:
         try:
+            if plan.target and (not self.serial or self.serial != plan.target.serial):
+                raise GuardError("executor serial does not match the bound installation target")
             validate(plan)
-        except GuardError as e:
+        except (GuardError, ArtifactError) as e:
             raise StepFailed(plan.steps[0] if plan.steps else Step("plan", ""), f"plan rejected: {e}") from None
         for step in plan.steps:
             self.ui.info(f"→ {step.title}")
@@ -66,9 +99,13 @@ class Executor:
                 args = [x.replace("{answer}", answer) for x in c.args]
                 # re-check right before running (defence in depth)
                 try:
-                    check_command(c.tool, args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
-                                  allow_unlock=step.unlock)
-                except GuardError as e:
+                    if plan.target and (self.serial != plan.target.serial or args[:1] in (["-s"], ["-t"])):
+                        raise GuardError("command no longer matches the bound device selector")
+                    use = check_command(c.tool, args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
+                                        allow_unlock=step.unlock)
+                    if use:
+                        verify_artifact(_required_file(plan, use))
+                except (GuardError, ArtifactError) as e:
                     raise StepFailed(step, f"command rejected: {e}") from None
                 tool = self.adb if c.tool == "adb" else self.fastboot
                 r = tool.run(*args, timeout=c.timeout)

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
+from .artifacts import ArtifactRequirement
+
 Risk = Literal["none", "reboot", "data-loss", "system-write"]
 WaitFor = Literal["", "android", "recovery", "sideload", "fastboot", "fastbootd"]
 
@@ -32,17 +34,35 @@ class Step:
     show_output: bool = False  # print the command output to the user (e.g. Motorola unlock data)
 
 
+@dataclass(frozen=True)
+class InstallTarget:
+    serial: str
+    codenames: tuple[str, ...]
+
+
 @dataclass
 class Plan:
     title: str
     steps: list[Step]
     warnings: list[str] = field(default_factory=list)
+    artifacts: tuple[ArtifactRequirement, ...] = ()
+    target: InstallTarget | None = None
 
     def render(self) -> str:
         lines = [self.title, ""]
+        if self.target:
+            serial = self.target.serial
+            masked = serial[:2] + "…" + serial[-2:] if len(serial) > 4 else "…"
+            lines.extend([f"Target: {', '.join(self.target.codenames)} (serial {masked})", ""])
         for w in self.warnings:
             lines.append(f"! {w}")
         if self.warnings:
+            lines.append("")
+        if self.artifacts:
+            lines.append("Required file checks (repeated before execution and each file operation):")
+            for artifact in self.artifacts:
+                lines.append(f"   {artifact.path.name}: {artifact.manifest.size} bytes")
+                lines.append(f"   SHA-256 {artifact.manifest.sha256}")
             lines.append("")
         for i, s in enumerate(self.steps, 1):
             tag = "" if s.risk in ("none", "reboot") else f"  [{s.risk}]"

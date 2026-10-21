@@ -83,20 +83,24 @@ def test_package_metadata_and_updater_script(tmp_path):
 
 def profile(**kw):
     base = dict(mode="android", brand="Xiaomi", model="Redmi Note 7", codenames=["lavender"],
-                bootloader_unlocked="yes", battery_percent=80)
+                serial="S1", bootloader_unlocked="yes", battery_percent=80,
+                treble="yes", abi="arm64-v8a", ab="no", system_as_root="yes", dynamic_partitions="no")
     base.update(kw)
     return DeviceProfile(**base)
 
 
 @pytest.fixture
-def rom(tmp_path):
-    return inspect(make_zip(tmp_path, "rom.zip", {"payload.bin": b"x",
-                                                   "META-INF/com/android/metadata": "pre-device=lavender\n"}))
+def rom(tmp_path, artifact_manifest):
+    path = make_zip(tmp_path, "rom.zip", {"payload.bin": b"x",
+                                          "META-INF/com/android/metadata": "pre-device=lavender\n"})
+    artifact_manifest(path)
+    return inspect(path)
 
 
-def test_plan_boots_recovery_temporarily_and_wipes(rom, tmp_path):
+def test_plan_boots_recovery_temporarily_and_wipes(rom, tmp_path, artifact_manifest):
     rec = tmp_path / "twrp.img"
     rec.write_bytes(b"x")
+    artifact_manifest(rec, "recovery")
     plan = plan_sideload_install(profile(), InstallRequest(rom, recovery=rec, recovery_name="TWRP"))
     titles = [s.title for s in plan.steps]
     assert titles[0] == "Reboot to fastboot"
@@ -191,10 +195,11 @@ def test_guard_unlock_only_when_allowed():
     check_command("fastboot", ["--slot=all", "flash", "boot", "b.img"])
 
 
-def test_gsi_plan_dynamic_uses_fastbootd(tmp_path):
+def test_gsi_plan_dynamic_uses_fastbootd(tmp_path, artifact_manifest):
     from curseofdroid.flash.planner import plan_gsi_install
     img = tmp_path / "system.img"
     img.write_bytes(b"x")
+    artifact_manifest(img, "gsi")
     p = profile(dynamic_partitions="yes", mode="android")
     plan = plan_gsi_install(p, img)
     validate(plan)
@@ -203,10 +208,11 @@ def test_gsi_plan_dynamic_uses_fastbootd(tmp_path):
     assert not any("vbmeta" in " ".join(c.args) for s in plan.steps for c in s.commands)
 
 
-def test_gsi_plan_legacy_writes_real_system(tmp_path):
+def test_gsi_plan_legacy_writes_real_system(tmp_path, artifact_manifest):
     from curseofdroid.flash.planner import plan_gsi_install
     img = tmp_path / "system.img"
     img.write_bytes(b"x")
+    artifact_manifest(img, "gsi")
     plan = plan_gsi_install(profile(dynamic_partitions="no", mode="fastboot"), img)
     validate(plan)
     assert not any(s.wait_for == "fastbootd" for s in plan.steps)
