@@ -6,7 +6,7 @@ from curseofdroid.device.profile import DeviceProfile
 from curseofdroid.flash.executor import Executor, StepFailed, validate
 from curseofdroid.flash.guard import GuardError, check_command
 from curseofdroid.flash.package import inspect
-from curseofdroid.flash.plan import Command, Plan, Step
+from curseofdroid.flash.plan import Command, InstallTarget, Plan, Step
 from curseofdroid.flash.planner import InstallRequest, PlanError, plan_sideload_install
 from curseofdroid.transport.base import Result
 
@@ -162,10 +162,11 @@ def test_executor_rejects_whole_plan_before_running():
 
 
 def test_executor_stops_without_consent():
-    plan = Plan("x", [Step("wipe", "", "data-loss", [Command("fastboot", ["erase", "userdata"])])])
+    plan = Plan("x", [Step("wipe", "", "data-loss", [Command("fastboot", ["erase", "userdata"])])],
+                target=InstallTarget("S1", ("lavender",), "no", "", "no"))
     r = runner_for(["device"])
     with pytest.raises(StepFailed, match="cancelled"):
-        Executor("adb", "fastboot", None, FakeUI(consent=False), r, sleep=lambda s: None).run(plan)
+        Executor("adb", "fastboot", "S1", FakeUI(consent=False), r, sleep=lambda s: None).run(plan)
     assert r.calls == []
 
 

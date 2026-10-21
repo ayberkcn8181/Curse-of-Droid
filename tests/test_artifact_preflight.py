@@ -270,7 +270,7 @@ class UI:
 def file_plan(path, kind="rom"):
     requirement = require_artifact(path, kind)
     return Plan("controlled test", [Step("file", "", "system-write", [Command("adb", ["sideload", str(path)])])],
-                artifacts=(requirement,), target=InstallTarget("S1", ("lavender",)))
+                artifacts=(requirement,), target=InstallTarget("S1", ("lavender",), "yes", "a", "yes"))
 
 
 def runner_log():
@@ -292,8 +292,10 @@ def test_invalid_late_hash_stops_even_an_earlier_reboot(rom):
     assert calls == []
 
 
-def test_file_edit_during_confirmation_stops_before_transport(rom):
-    plan = file_plan(rom)
+def test_file_edit_during_confirmation_stops_before_transport(rom, artifact_manifest):
+    artifact_manifest(rom, "recovery")
+    plan = file_plan(rom, "recovery")
+    plan.steps[0].commands[0] = Command("fastboot", ["boot", str(rom)])
     calls, runner = runner_log()
 
     class ChangingUI(UI):
@@ -325,8 +327,10 @@ def test_bound_plans_reject_per_command_device_overrides(rom, selector):
     assert calls == []
 
 
-def test_selector_added_during_confirmation_is_also_rejected(rom):
-    plan = file_plan(rom)
+def test_selector_added_during_confirmation_is_also_rejected(rom, artifact_manifest):
+    artifact_manifest(rom, "recovery")
+    plan = file_plan(rom, "recovery")
+    plan.steps[0].commands[0] = Command("fastboot", ["boot", str(rom)])
     calls, runner = runner_log()
 
     class ChangingUI(UI):
@@ -378,10 +382,13 @@ def test_manifest_roles_cannot_be_reused_for_a_different_operation(rom, artifact
         validate(plan)
 
 
-def test_valid_file_use_executes_with_the_exact_bound_serial(rom):
+def test_sideload_is_blocked_before_reboot_or_manual_wipe(rom):
+    plan = file_plan(rom)
+    plan.steps.insert(0, Step("reboot", "", commands=[Command("adb", ["reboot", "recovery"])]))
     calls, runner = runner_log()
-    Executor("adb", "fastboot", "S1", UI(), runner).run(file_plan(rom))
-    assert calls == [["adb", "-s", "S1", "sideload", str(rom)]]
+    with pytest.raises(StepFailed, match="Automatic sideload is blocked"):
+        Executor("adb", "fastboot", "S1", UI(), runner).run(plan)
+    assert calls == []
 
 
 def setup_cli(monkeypatch, device):
@@ -413,3 +420,20 @@ def test_cli_gsi_dry_run_and_xz_refusal_are_read_only(device, image, monkeypatch
     monkeypatch.setattr(cli, "unpack_xz", lambda *_: pytest.fail("unvalidated automatic extraction"))
     assert cli.cmd_gsi(args) == 1
     assert "unpack the image first" in capsys.readouterr().out
+
+
+def test_cli_blocked_sideload_returns_before_start_or_wipe_prompt(device, rom, monkeypatch, capsys):
+    setup_cli(monkeypatch, device)
+    args = SimpleNamespace(rom=str(rom), recovery=None, recovery_name="", flash_recovery=False,
+                           recovery_partition="recovery", keep_data=False, extra=[], dry_run=False)
+    assert cli.cmd_install(args) == 1
+    assert "Automatic sideload is blocked" in capsys.readouterr().out
+
+
+def test_cli_aggregate_gsi_wipe_is_visible_in_dry_run_and_blocked_before_start(device, image, monkeypatch, capsys):
+    setup_cli(monkeypatch, device)
+    args = SimpleNamespace(install=str(image), keep_data=False, dry_run=True)
+    assert cli.cmd_gsi(args) == 0
+    assert "Aggregate fastboot -w is blocked" in capsys.readouterr().out
+    args.dry_run = False
+    assert cli.cmd_gsi(args) == 1

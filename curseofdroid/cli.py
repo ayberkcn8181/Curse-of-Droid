@@ -13,6 +13,7 @@ from pathlib import Path
 from .device.detect import detect
 from .flash.artifacts import ArtifactError
 from .flash.executor import Executor, StepFailed, validate
+from .flash.device_checks import execution_blocker
 from .flash.guard import GuardError
 from .flash.package import inspect as inspect_package
 from .catalog.deviceinfo import device_info
@@ -232,9 +233,14 @@ def cmd_install(args) -> int:
         print(f"Can't install: {e}")
         return 1
     print(plan.render())
+    blocked = execution_blocker(plan)
+    if blocked:
+        print(f"Execution blocked: {blocked}")
     if args.dry_run:
         print("\n(dry run: nothing was done)")
         return 0
+    if blocked:
+        return 1
     if input("\nStart? Type 'yes': ").strip().lower() != "yes":
         return 1
     try:
@@ -310,9 +316,14 @@ def cmd_gsi(args) -> int:
             print(f"Can't install: {e}")
             return 1
         print(plan.render())
+        blocked = execution_blocker(plan)
+        if blocked:
+            print(f"Execution blocked: {blocked}")
         if args.dry_run:
             print("\n(dry run: nothing was done)")
             return 0
+        if blocked:
+            return 1
         if input("\nStart? Type 'yes': ").strip().lower() != "yes":
             return 1
         try:

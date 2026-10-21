@@ -38,6 +38,14 @@ class Step:
 class InstallTarget:
     serial: str
     codenames: tuple[str, ...]
+    ab: str = "unknown"
+    current_slot: str = ""
+    dynamic_partitions: str = "unknown"
+
+    @classmethod
+    def from_profile(cls, profile):
+        return cls(profile.serial, tuple(profile.codenames), profile.ab, profile.current_slot,
+                   profile.dynamic_partitions)
 
 
 @dataclass

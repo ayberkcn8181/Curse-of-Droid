@@ -132,6 +132,14 @@ def _fastboot_options(a: list[str]) -> tuple[list[str], set[str]]:
     return a, seen
 
 
+def command_operation(tool: str, args: Sequence[str]) -> str:
+    """Extract the operation from an already guard-validated command vector."""
+    body = _arguments(tool, args)
+    if tool == "fastboot":
+        body, _ = _fastboot_options(body)
+    return body[0].split(":", 1)[0]
+
+
 def _check_adb(a: list[str]) -> FileUse | None:
     cmd = a[0]
     if cmd == "reboot":

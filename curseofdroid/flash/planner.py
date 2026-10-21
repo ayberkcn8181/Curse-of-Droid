@@ -44,6 +44,8 @@ def preflight(profile: DeviceProfile, req: InstallRequest) -> list[str]:
         problems.append("the device codename is unknown")
     if not profile.serial:
         problems.append("an explicit device serial is required")
+    if profile.ab not in {"yes", "no"} or profile.ab == "yes" and profile.current_slot not in {"a", "b"}:
+        problems.append("a confirmed A/B layout and active slot are required")
     if profile.battery_percent is not None and profile.battery_percent < MIN_BATTERY:
         problems.append(f"battery at {profile.battery_percent}%: charge to at least {MIN_BATTERY}%")
     if req.rom.kind != "ota-zip":
@@ -128,7 +130,7 @@ def plan_sideload_install(profile: DeviceProfile, req: InstallRequest) -> Plan:
     steps.append(Step("Restart into the new system", "The first boot can take several minutes.", "reboot",
                       [Command("adb", ["reboot"])], wait_for="android", wait_timeout=1200))
     return Plan(f"Install {req.rom.path.name} on {profile.brand} {profile.model} ({profile.codename})".strip(),
-                steps, warnings, artifacts, InstallTarget(profile.serial, tuple(profile.codenames)))
+                steps, warnings, artifacts, InstallTarget.from_profile(profile))
 
 
 def plan_gsi_install(profile: DeviceProfile, image: Path, wipe_data: bool = True) -> Plan:
@@ -193,4 +195,4 @@ def plan_gsi_install(profile: DeviceProfile, image: Path, wipe_data: bool = True
                 "If the phone doesn't boot (returns to the bootloader), it may need verified boot disabled with "
                 "its own vbmeta step — follow the device's GSI instructions; this tool doesn't do that by default."]
     return Plan(f"Install {image.name} on {profile.brand} {profile.model} ({profile.codename})", steps, warnings,
-                (artifact,), InstallTarget(profile.serial, tuple(profile.codenames)))
+                (artifact,), InstallTarget.from_profile(profile))

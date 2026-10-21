@@ -58,10 +58,16 @@ def test_failed_plan_clears_the_previous_install_action(app, tmp_path, artifact_
     artifact_manifest(path)
     w = MainWindow()
     w.device = Detected("S1", "android", DeviceProfile(serial="S1", mode="android", codenames=["lavender"],
-                                                     bootloader_unlocked="yes"))
+                                                     bootloader_unlocked="yes", ab="no",
+                                                     dynamic_partitions="no"))
     w.rom_edit.setText(str(path))
     w.make_plan()
-    assert w.plan is not None and w.install_btn.isEnabled()
+    assert w.plan is not None and not w.install_btn.isEnabled()
+    assert "Automatic sideload is blocked" in w.plan_view.toPlainText()
+    messages = []
+    monkeypatch.setattr(w, "fail", messages.append)
+    w.run_install()
+    assert len(messages) == 1 and "Automatic sideload is blocked" in messages[0]
     validate(w.plan)
     path.with_name(path.name + ".manifest.json").unlink()
     w.make_plan()

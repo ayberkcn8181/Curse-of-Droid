@@ -16,6 +16,7 @@ from .. import __version__
 from ..catalog.providers import TWRP, find_builds, is_stale
 from ..device.detect import Detected, detect
 from ..flash.executor import Executor, StepFailed
+from ..flash.device_checks import execution_blocker
 from ..flash.package import inspect as inspect_package
 from ..catalog.deviceinfo import device_info
 from ..catalog.gsi import trebledroid_builds, unpack_xz
@@ -354,8 +355,7 @@ class MainWindow(QMainWindow):
             except PlanError as e:
                 self.plan_view.setPlainText(f"Can't install: {e}")
                 return
-            self.plan_view.setPlainText(self.plan.render())
-            self.install_btn.setEnabled(True)
+            self.show_install_plan()
             return
         req = InstallRequest(
             inspect_package(Path(self.rom_edit.text())),
@@ -368,12 +368,18 @@ class MainWindow(QMainWindow):
         except PlanError as e:
             self.plan_view.setPlainText(f"Can't install: {e}")
             return
-        self.plan_view.setPlainText(self.plan.render())
-        self.install_btn.setEnabled(True)
+        self.show_install_plan()
+
+    def show_install_plan(self):
+        blocked = execution_blocker(self.plan)
+        self.plan_view.setPlainText(self.plan.render() + (f"\n\nExecution blocked: {blocked}" if blocked else ""))
+        self.install_btn.setEnabled(not blocked)
 
     def run_install(self):
         if self.plan is None:
             return self.fail("Create a current installation plan first.")
+        if reason := execution_blocker(self.plan):
+            return self.fail(reason)
         if QMessageBox.question(self, "Install", "Start the install? Every risky step asks again.",
                                 QMessageBox.Yes | QMessageBox.Cancel) == QMessageBox.Yes:
             self._execute(self.plan)

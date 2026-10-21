@@ -7,7 +7,8 @@ recovery (TWRP, OrangeFox, LineageOS Recovery), verifies the downloads and flash
 destructive step. If no build exists it can, with your permission, build one locally.
 
 **Status: early development — milestones 1–5** (tool setup, USB drivers/udev, device detection, build catalog,
-verified downloads from 19 ROM projects, official bootloader unlock flows, recovery + sideload install with a command guard, desktop app). Tested on one real device so far; use `--dry-run` first.
+verified downloads from 19 ROM projects, official bootloader unlock flows, guarded installation previews, desktop app). Historical detection was tested on one real device; the new
+installation gates have injected-transport tests, not hardware validation. Use `--dry-run` first.
 See [DESIGN.md](DESIGN.md) for the plan and the deliberate limits (official unlock methods only, firmware
 partitions are never written).
 
@@ -34,16 +35,18 @@ Motorola → `fastboot oem unlock`). Guided: Xiaomi (Mi Unlock), Samsung (Downlo
 without an official method (e.g. current OPPO/realme, Huawei/Honor) the tool says so — it does not claim the
 phone can't be unlocked, and if the bootloader is unlocked by other means it detects that and continues.
 
-Install through a custom recovery. Every selected ROM, recovery and add-on needs an individual reviewed
+Preview installation through a custom recovery. Automatic sideload execution is currently blocked because
+standard sideload cannot supply a fresh device identity; see [fresh device preflight](docs/FRESH_DEVICE_PREFLIGHT.md).
+Every selected ROM, recovery and add-on needs an individual reviewed
 SHA-256 `.manifest.json` sidecar first; see [installation preflight](docs/INSTALL_PREFLIGHT.md).
 Downloading a file or matching its size does not satisfy this requirement.
 
 ```bash
 curseofdroid install --rom ROM.zip --recovery twrp.img --recovery-name TWRP --dry-run   # verify files and print the plan
-curseofdroid install --rom ROM.zip --recovery twrp.img --recovery-name TWRP --extra gapps.zip
+curseofdroid install --rom ROM.zip --recovery twrp.img --recovery-name TWRP --extra gapps.zip --dry-run
 ```
 
-The recovery is booted once from the computer (`fastboot boot`) unless `--flash-recovery` is given. Every step that
+The preview describes booting recovery once (`fastboot boot`) unless `--flash-recovery` is given. Every step that
 erases data or writes the system asks you to type `yes`. Before anything runs, every command of the plan passes a
 guard: only known fastboot commands, writes only to OS/recovery partitions, wipes only of userdata/metadata/cache,
 never firmware partitions, never relocking. A ROM zip that names a different device is refused.
@@ -74,7 +77,10 @@ phones that need verified boot disabled for a GSI need their own device-specific
 adapter provides download size metadata rather than a raw-image SHA-256 reference.
 Installation requires a separate reviewed reference for the exact raw `.img`, confirmed device/slot/layout
 information and arm64-v8a. A `.img.xz` is not implicitly extracted by `--install`. See
-[installation preflight](docs/INSTALL_PREFLIGHT.md) for supported states and remaining checks.
+[installation preflight](docs/INSTALL_PREFLIGHT.md) for artifact requirements. Execution also requires
+[fresh device/slot/capacity checks](docs/FRESH_DEVICE_PREFLIGHT.md). The default aggregate `fastboot -w`
+GSI plan is preview-only until a device-specific wipe workflow is reviewed; retaining data is appropriate
+only when the device/ROM instructions explicitly permit it.
 
 ## Desktop app
 

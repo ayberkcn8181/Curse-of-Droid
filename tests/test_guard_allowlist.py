@@ -5,7 +5,7 @@ import pytest
 from curseofdroid.device.profile import DeviceProfile
 from curseofdroid.flash.executor import Executor, StepFailed, validate
 from curseofdroid.flash.guard import GuardError, check_command
-from curseofdroid.flash.plan import Command, Plan, Step
+from curseofdroid.flash.plan import Command, InstallTarget, Plan, Step
 from curseofdroid.transport.base import Result
 from curseofdroid.vendors import vendor_for
 
@@ -248,7 +248,8 @@ def test_invalid_later_step_rejects_entire_plan_before_any_runner_call(tool, arg
 def test_changed_command_is_rechecked_and_reported_before_transport():
     calls = []
     command = Command("fastboot", ["erase", "userdata"])
-    plan = Plan("test", [Step("write", "", "data-loss", [command])])
+    plan = Plan("test", [Step("write", "", "data-loss", [command])],
+                target=InstallTarget("SERIAL", ("lavender",), "no", "", "no"))
 
     class ChangingUI(QuietUI):
         def confirm(self, step):

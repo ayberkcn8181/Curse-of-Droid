@@ -156,6 +156,19 @@ def require_artifact(path: Path, kind: str) -> ArtifactRequirement:
         raise ArtifactError(f"{path.name}: need a readable file and valid {reference.name}; see docs/INSTALL_PREFLIGHT.md") from None
 
 
+def assert_unchanged(requirement: ArtifactRequirement) -> None:
+    """Cheap final identity check after device probes; does not replace hashing."""
+    try:
+        before = _regular(requirement.path)
+        with _open_regular(requirement.path) as stream:
+            if (not _path_matches(before, requirement.identity)
+                    or _identity(os.fstat(stream.fileno())) != requirement.identity
+                    or _identity(_regular(requirement.path)) != _identity(before)):
+                raise ArtifactError("installation file changed during device preflight")
+    except OSError:
+        raise ArtifactError("installation file disappeared during device preflight") from None
+
+
 def verify_artifact(requirement: ArtifactRequirement) -> None:
     """Re-hash the current file against the captured reference, never a saved verdict."""
     path, manifest = requirement.path, requirement.manifest

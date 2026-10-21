@@ -43,7 +43,7 @@ installation remains blocked. Do not fill in a locally computed digest simply to
 ## Planning and execution
 
 1. Planning reads bounded metadata and regular-file identity/size, captures immutable requirements and
-   binds a copy of the target serial/codenames. It uses absolute file paths. It does **not** claim to have
+   binds a copy of the target serial/codenames and slot/layout snapshot. It uses absolute file paths. It does **not** claim to have
    hashed the file; large-file hashing stays out of the Widgets plan-preview handler.
 2. CLI `install --dry-run` and `gsi --install ... --dry-run` run the complete guard and SHA-256 validation
    and print the plan. They do not reboot, erase, unlock or write to a phone. Normal CLI installation also
@@ -78,12 +78,14 @@ SHA-256 mismatches, file changes and replacement, target/role conflicts, preflig
 serial selection, dry runs and the Widgets failed-plan path. No physical device operation is validation
 evidence. Executed counts, coverage and native CI links are recorded in the PR.
 
-Before QML installation is enabled, remaining work includes publisher-authenticated verification and
-provider/download-receipt integration; image filesystem/ABI inspection; fresh serial/bootloader/slot/
-partition-capacity checks after mode transitions; device-specific recovery/firmware rules; stronger
+Fresh device identity, slot, mode and partition capacity checks are now required for bound installation
+plans; see [fresh device preflight](FRESH_DEVICE_PREFLIGHT.md), including its blocked sideload and
+aggregate-wipe paths. Before QML installation is enabled, remaining work includes publisher-authenticated
+verification and provider/download-receipt integration; image filesystem/ABI inspection; device-specific
+recovery/firmware and wipe rules; snapshot/merge-state checks; stronger
 consent/operation context; and a private staging strategy to narrow the race between the final hash
-check and the external tool opening the filename. Static binding does not detect serial spoofing or
-stale device state. A verified digest and matching declared ABI do not prove an image can boot.
+check and the external tool opening the filename. Reported device identity does not detect serial spoofing and sequential probes cannot guarantee
+an atomic device state. A verified digest and matching declared ABI do not prove an image can boot.
 
 Archive/decompression budgets, cancellable verification progress and hardware tests also remain.
 No existing safety PR is merged or bypassed by this change.
