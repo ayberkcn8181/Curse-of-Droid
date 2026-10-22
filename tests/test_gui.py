@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication, QInputDialog  # noqa: E402
 
 from curseofdroid.device.detect import Detected  # noqa: E402
 from curseofdroid.device.profile import DeviceProfile  # noqa: E402
+from curseofdroid.flash.executor import validate  # noqa: E402
 from curseofdroid.flash.plan import Step  # noqa: E402
 from curseofdroid.gui.app import MainWindow  # noqa: E402
 
@@ -61,3 +62,35 @@ def test_legacy_download_handles_large_progress_without_claiming_hash(app, tmp_p
     w.run_download()
     assert w.progress.maximum() == 100 and w.progress.value() == 50
     assert "no publisher checksum or expected size" in w.logbox.toPlainText()
+
+
+def test_failed_plan_clears_the_previous_install_action(app, tmp_path, artifact_manifest, monkeypatch):
+    import zipfile
+
+    path = tmp_path / "rom.zip"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("payload.bin", b"controlled payload")
+        archive.writestr("META-INF/com/android/metadata", "pre-device=lavender\n")
+    artifact_manifest(path)
+    w = MainWindow()
+    w.device = Detected("S1", "android", DeviceProfile(serial="S1", mode="android", codenames=["lavender"],
+                                                     bootloader_unlocked="yes", ab="no",
+                                                     dynamic_partitions="no"))
+    w.rom_edit.setText(str(path))
+    w.make_plan()
+    assert w.plan is not None and not w.install_btn.isEnabled()
+    assert "Automatic sideload is blocked" in w.plan_view.toPlainText()
+    messages = []
+    monkeypatch.setattr(w, "fail", messages.append)
+    w.run_install()
+    assert len(messages) == 1 and "Automatic sideload is blocked" in messages[0]
+    validate(w.plan)
+    path.with_name(path.name + ".manifest.json").unlink()
+    w.make_plan()
+    assert w.plan is None and not w.install_btn.isEnabled()
+    assert "manifest.json" in w.plan_view.toPlainText()
+    messages = []
+    monkeypatch.setattr(w, "fail", messages.append)
+    w.run_install()
+    assert messages == ["Create a current installation plan first."]
+    w.close()

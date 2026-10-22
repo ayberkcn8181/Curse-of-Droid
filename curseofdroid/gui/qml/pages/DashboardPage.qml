@@ -9,6 +9,7 @@ ScrollView {
     signal activityRequested()
     signal catalogRequested()
     signal recoveryRequested()
+    signal installRequested()
     clip: true
     contentWidth: availableWidth
     ColumnLayout {
@@ -64,7 +65,7 @@ ScrollView {
                     UiText { text: qsTr("Explore ROM and recovery publishers in the QML catalog."); secondary: true; Layout.fillWidth: true }
                     AppButton { text: qsTr("Explore ROM library"); iconName: "layers"; Layout.fillWidth: true; enabled: !backend.busy; onClicked: view.catalogRequested() }
                     AppButton { text: qsTr("Find recovery"); iconName: "shield"; Layout.fillWidth: true; onClicked: view.recoveryRequested() }
-                    AppButton { text: qsTr("Open existing installer"); iconName: "wand"; Layout.fillWidth: true; enabled: !backend.busy; onClicked: backend.openLegacy(3) }
+                    AppButton { text: qsTr("Prepare installation plan"); iconName: "wand"; Layout.fillWidth: true; enabled: !backend.busy; onClicked: view.installRequested() }
                     UiText { text: qsTr("Installation remains an early-development workflow. Review the device-specific instructions and every command."); secondary: true; font.pixelSize: 11 * theme.scale; Layout.fillWidth: true }
                 }
             }

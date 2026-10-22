@@ -31,7 +31,7 @@ Rectangle {
                      {key:"device", title:qsTr("My device"), icon:"phone", ready:true},
                      {key:"roms", title:qsTr("ROM library"), icon:"layers", ready:true},
                      {key:"recovery", title:qsTr("Recovery manager"), icon:"shield", ready:true},
-                     {key:"install", title:qsTr("Installation wizard"), icon:"wand", ready:false},
+                     {key:"install", title:qsTr("Installation plan"), icon:"wand", ready:true},
                      {key:"downloads", title:qsTr("Downloads"), icon:"download", ready:true},
                      {key:"advanced", title:qsTr("Advanced tools"), icon:"terminal", ready:false},
                      {key:"activity", title:qsTr("Activity & logs"), icon:"activity", ready:true} ]

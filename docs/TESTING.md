@@ -73,3 +73,13 @@ application ownership, preventing loss of receiver ownership while a worker is s
 regression explicitly drops the caller reference during a blocked provider request and verifies delivery.
 Earlier Windows CI heads had intermittent native access violations; see the PR for exact-head CI results.
 The precise native fault was not established from the available Python-only crash trace.
+
+
+## Read-only installation preview
+
+`python -m pytest tests/test_qml_installation.py -q` exercises real local hashes, shared planners and
+Qt worker/QML events with controlled device profiles. Preview tests forbid transport/Executor calls.
+They cover cancellation and late-result races, input/device invalidation, 64-bit progress values,
+duplicate serials, responsive GUI/close handling and dark/light rendering at both supported window sizes.
+`python -m curseofdroid.gui.capture --pages install --output docs/screenshots/install-preview` records
+actual application windows; see [the preview guide](QML_INSTALL_PREVIEW.md) for state and scope.

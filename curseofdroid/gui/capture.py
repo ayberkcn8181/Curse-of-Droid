@@ -21,7 +21,7 @@ from .theme import ThemeManager
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path("docs/screenshots"))
-    parser.add_argument("--pages", nargs="+", choices=["dashboard", "settings", "roms", "recovery", "downloads"], default=["dashboard", "settings"])
+    parser.add_argument("--pages", nargs="+", choices=["dashboard", "settings", "roms", "recovery", "downloads", "install"], default=["dashboard", "settings"])
     parser.add_argument("--catalog-query", default="", help="run actual providers for this codename before capture")
     parser.add_argument("--download-project", default="", help="queue the first actual result from this project before capture")
     parser.add_argument("--download-kind", choices=["rom", "recovery"], default="recovery")

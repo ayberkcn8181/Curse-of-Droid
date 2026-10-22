@@ -14,6 +14,7 @@ from .. import __version__
 from .catalog import Catalog
 from .dashboard import Dashboard
 from .downloads import DownloadManager
+from .installation import InstallationPreview
 from .theme import ThemeManager
 from .widgets import MainWindow  # Backwards-compatible import for existing integrations and tests.
 
@@ -30,6 +31,8 @@ class Runtime:
         for catalog in (self.rom_catalog, self.recovery_catalog):
             catalog.operationReported.connect(self.dashboard.record_catalog_event)
             catalog.downloadRequested.connect(self.downloads.enqueue)
+        self.installation = InstallationPreview(self.dashboard)
+        self.installation.operationReported.connect(self.dashboard.record_catalog_event)
         self.windows = []
         if QQuickStyle.name() != "Basic":
             QQuickStyle.setStyle("Basic")
@@ -41,6 +44,7 @@ class Runtime:
         self.engine.rootContext().setContextProperty("romCatalog", self.rom_catalog)
         self.engine.rootContext().setContextProperty("recoveryCatalog", self.recovery_catalog)
         self.engine.rootContext().setContextProperty("downloadManager", self.downloads)
+        self.engine.rootContext().setContextProperty("installPreview", self.installation)
         self.dashboard.legacyRequested.connect(self.open_legacy)
         self.engine.load(QUrl.fromLocalFile(str(Path(__file__).parent / "qml" / "Main.qml")))
         if not self.engine.rootObjects():
@@ -51,6 +55,7 @@ class Runtime:
         self.engine.deleteLater()
         self.app.sendPostedEvents(None, QEvent.DeferredDelete)
         self.downloads.close()
+        self.installation.close()
 
     def open_legacy(self, page):
         w = MainWindow()

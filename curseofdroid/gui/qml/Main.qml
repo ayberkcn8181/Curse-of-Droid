@@ -28,12 +28,12 @@ ApplicationWindow {
     palette.toolTipBase: theme.colors.elevated
     palette.toolTipText: theme.colors.text
     property string currentPage: "dashboard"
-    readonly property var pageKeys: ["dashboard", "device", "activity", "settings", "roms", "recovery", "downloads"]
-    readonly property var pageTitles: [qsTr("Dashboard"), qsTr("My device"), qsTr("Activity & logs"), qsTr("Settings"), qsTr("ROM library"), qsTr("Recovery manager"), qsTr("Downloads")]
+    readonly property var pageKeys: ["dashboard", "device", "activity", "settings", "roms", "recovery", "downloads", "install"]
+    readonly property var pageTitles: [qsTr("Dashboard"), qsTr("My device"), qsTr("Activity & logs"), qsTr("Settings"), qsTr("ROM library"), qsTr("Recovery manager"), qsTr("Downloads"), qsTr("Installation plan")]
     onClosing: function(close) {
-        if (backend.busy || romCatalog.busy || recoveryCatalog.busy || downloadManager.busy) {
+        if (backend.busy || romCatalog.busy || recoveryCatalog.busy || downloadManager.busy || installPreview.busy) {
             close.accepted = false
-            toast.show(qsTr("An operation is running. Pause downloads or wait for operations to finish before closing."))
+            toast.show(qsTr("An operation is running. Cancel verification, pause downloads or wait for operations to finish before closing."))
         }
     }
     Component.onCompleted: if (autoDiscover) backend.refresh()
@@ -66,13 +66,14 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.margins: 30
                 currentIndex: window.pageKeys.indexOf(window.currentPage)
-                DashboardPage { onCatalogRequested: window.currentPage = "roms"; onRecoveryRequested: window.currentPage = "recovery"; onDetailsRequested: window.currentPage = "device"; onActivityRequested: window.currentPage = "activity" }
+                DashboardPage { onCatalogRequested: window.currentPage = "roms"; onRecoveryRequested: window.currentPage = "recovery"; onInstallRequested: window.currentPage = "install"; onDetailsRequested: window.currentPage = "device"; onActivityRequested: window.currentPage = "activity" }
                 DevicePage {}
                 ActivityPage {}
                 SettingsPage {}
                 CatalogPage { catalog: romCatalog }
                 CatalogPage { catalog: recoveryCatalog; recovery: true }
                 DownloadsPage {}
+                InstallationPage {}
             }
         }
     }
@@ -90,5 +91,6 @@ ApplicationWindow {
     Connections { target: romCatalog; function onNotice(message) { toast.show(message) } }
     Connections { target: recoveryCatalog; function onNotice(message) { toast.show(message) } }
     Connections { target: downloadManager; function onNotice(message) { toast.show(message) } function onAdded() { window.currentPage = "downloads" } }
+    Connections { target: installPreview; function onNotice(message) { toast.show(message) } }
     Connections { target: theme; function onPreferenceError(message) { toast.show(message) } }
 }

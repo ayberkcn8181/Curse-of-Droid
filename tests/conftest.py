@@ -19,3 +19,22 @@ def app():
     assert QThreadPool.globalInstance().waitForDone(10000), "Qt workers still running at session shutdown"
     application.processEvents()
     QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+
+
+import hashlib
+import json
+
+
+@pytest.fixture
+def artifact_manifest():
+    def write(path, kind="rom", **overrides):
+        content = path.read_bytes()
+        document = dict(version=1, filename=path.name, kind=kind, size=len(content),
+                        sha256=hashlib.sha256(content).hexdigest(),
+                        source_url="https://publisher.example/releases/checksums.txt", devices=["lavender"])
+        if kind == "gsi":
+            document.update(abi="arm64-v8a", layout="system-as-root")
+        document.update(overrides)
+        path.with_name(path.name + ".manifest.json").write_text(json.dumps(document), encoding="utf-8")
+        return document
+    return write
