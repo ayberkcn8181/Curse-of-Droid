@@ -43,10 +43,10 @@ def parse_getprop(text: str) -> dict[str, str]:
 
 class Adb(Tool):
     def devices(self) -> list[AdbDevice]:
-        return parse_devices(self.run("devices", "-l").stdout)
+        return parse_devices(self.read("devices", "-l").stdout)
 
     def getprop(self) -> dict[str, str]:
-        return parse_getprop(self.run("shell", "getprop").stdout)
+        return parse_getprop(self.read("shell", "getprop").stdout)
 
     def shell(self, command: str, timeout: float = 30) -> str:
-        return self.run("shell", command, timeout=timeout).stdout
+        return self.read("shell", command, timeout=timeout).stdout

@@ -29,6 +29,15 @@ def subprocess_runner(args: Sequence[str], timeout: float) -> Result:
     return Result(list(args), p.returncode, p.stdout, p.stderr)
 
 
+class TransportError(RuntimeError):
+    """A read-only probe failed; this is not evidence that no devices exist."""
+
+    def __init__(self, tool: str, operation: str, returncode: int):
+        self.returncode = returncode
+        super().__init__(f"{tool} {operation} failed (exit {returncode}). "
+                         "Check USB authorization, permissions, drivers and platform-tools.")
+
+
 class Tool:
     def __init__(self, exe: Path | str, runner: Runner = subprocess_runner, serial: str | None = None):
         self.exe = str(exe)
@@ -38,3 +47,14 @@ class Tool:
     def run(self, *args: str, timeout: float = 30) -> Result:
         base = [self.exe] + (["-s", self.serial] if self.serial else [])
         return self.runner(base + list(args), timeout)
+
+    def read(self, *args: str, timeout: float = 30) -> Result:
+        """Check read-only command status without disclosing serials or raw diagnostic output.
+
+        Write operations keep using run(): Executor has its own status/consent protocol, including
+        the recovery-specific adb sideload exit convention.
+        """
+        result = self.run(*args, timeout=timeout)
+        if not result.ok:
+            raise TransportError(type(self).__name__, args[0] if args else "probe", result.returncode)
+        return result
