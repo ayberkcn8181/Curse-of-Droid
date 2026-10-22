@@ -1,0 +1,12 @@
+{
+  "project": "TWRP",
+  "codename": "lavender",
+  "filename": "twrp-3.7.0_9-0-lavender.img",
+  "url": "https://dl.twrp.me/lavender/twrp-3.7.0_9-0-lavender.img",
+  "checksum_url": "https://dl.twrp.me/lavender/twrp-3.7.0_9-0-lavender.img.sha256",
+  "size": 35225600,
+  "expected_sha256": "77a3b799e9b6748bdbb8352431166a834a547db95884885f1026dfe9167a93fe",
+  "observed_sha256": "77a3b799e9b6748bdbb8352431166a834a547db95884885f1026dfe9167a93fe",
+  "downloaded_utc": "2026-10-20T12:58:58.129097+00:00",
+  "method": "Actual application catalog selection, production HTTPS downloader with certificate/hostname verification, then real file SHA-256 recheck before screenshots. No injected artifacts or fixture providers. No device attached."
+}

@@ -11,14 +11,17 @@ from .catalog.providers import ALL_PROVIDERS, TWRP, find_builds, is_stale
 from pathlib import Path
 
 from .device.detect import detect
-from .flash.executor import Executor, StepFailed
+from .flash.artifacts import ArtifactError
+from .flash.executor import Executor, StepFailed, validate
+from .flash.device_checks import execution_blocker
+from .flash.guard import GuardError
 from .flash.package import inspect as inspect_package
 from .catalog.deviceinfo import device_info
 from .catalog.gsi import gsi_fit, trebledroid_builds, unpack_xz
 from .flash.planner import InstallRequest, PlanError, plan_gsi_install, plan_sideload_install
 from .platform import drivers
 from .vendors import vendor_for
-from .platform.net import VerificationError, download
+from .platform.net import VerificationError, download, download_destination, verification_label
 from .platform.paths import downloads_dir
 from .platform.tools import find_tools, install_platform_tools
 
@@ -179,9 +182,13 @@ def cmd_download(args) -> int:
         return 1
     if isinstance(p, TWRP):
         p.fill_hash(b)
-    dest = downloads_dir() / b.codename / b.main.filename
+    try:
+        dest = download_destination(downloads_dir(), b.codename, b.main.filename)
+    except VerificationError as error:
+        print(f"Download refused: {error}", file=sys.stderr)
+        return 1
     if not b.main.hashes:
-        print("! The project publishes no checksum for this file; only the size can be checked.")
+        print("! The project publishes no checksum for this file; authenticity is unverified.")
     print(f"Downloading {b.main.filename} -> {dest}")
 
     def progress(done, total):
@@ -194,7 +201,7 @@ def cmd_download(args) -> int:
     except VerificationError as e:
         print(f"\nVerification failed: {e}. The partial file was kept as .part; try again.")
         return 1
-    print(f"\nVerified ({', '.join(b.main.hashes) or 'size'}): {dest}")
+    print(f"\n{verification_label(size=b.main.size, hashes=b.main.hashes)}: {dest}")
     return 0
 
 
@@ -218,20 +225,26 @@ class ConsoleUI:
 def cmd_install(args) -> int:
     tools = _need_tools()
     dev = _one_device(tools)
-    rom = inspect_package(Path(args.rom))
-    req = InstallRequest(rom, recovery=Path(args.recovery) if args.recovery else None,
-                         recovery_name=args.recovery_name or "", flash_recovery=args.flash_recovery,
-                         recovery_partition=args.recovery_partition, wipe_data=not args.keep_data,
-                         extras=tuple(inspect_package(Path(x)) for x in args.extra or []))
     try:
+        rom = inspect_package(Path(args.rom))
+        req = InstallRequest(rom, recovery=Path(args.recovery) if args.recovery else None,
+                             recovery_name=args.recovery_name or "", flash_recovery=args.flash_recovery,
+                             recovery_partition=args.recovery_partition, wipe_data=not args.keep_data,
+                             extras=tuple(inspect_package(Path(x)) for x in args.extra or []))
         plan = plan_sideload_install(dev.profile, req)
-    except PlanError as e:
+        validate(plan)
+    except (PlanError, ArtifactError, GuardError, OSError) as e:
         print(f"Can't install: {e}")
         return 1
     print(plan.render())
+    blocked = execution_blocker(plan)
+    if blocked:
+        print(f"Execution blocked: {blocked}")
     if args.dry_run:
         print("\n(dry run: nothing was done)")
         return 0
+    if blocked:
+        return 1
     if input("\nStart? Type 'yes': ").strip().lower() != "yes":
         return 1
     try:
@@ -297,17 +310,24 @@ def cmd_gsi(args) -> int:
     if args.install:
         image = Path(args.install)
         if image.name.endswith(".xz"):
-            print(f"Unpacking {image.name} …")
-            image = unpack_xz(image)
+            print("Can't install: unpack the image first and provide a manifest for the raw .img; "
+                  "see docs/INSTALL_PREFLIGHT.md")
+            return 1
         try:
             plan = plan_gsi_install(p, image, wipe_data=not args.keep_data)
-        except PlanError as e:
+            validate(plan)
+        except (PlanError, ArtifactError, GuardError) as e:
             print(f"Can't install: {e}")
             return 1
         print(plan.render())
+        blocked = execution_blocker(plan)
+        if blocked:
+            print(f"Execution blocked: {blocked}")
         if args.dry_run:
             print("\n(dry run: nothing was done)")
             return 0
+        if blocked:
+            return 1
         if input("\nStart? Type 'yes': ").strip().lower() != "yes":
             return 1
         try:
@@ -329,7 +349,7 @@ def cmd_gsi(args) -> int:
         print(f"  {b.project} {b.version} · {b.variant} · {b.main.size / 2**30:.2f} GiB · {b.main.filename}")
     if args.download and builds:
         b = builds[1] if args.old and len(builds) > 1 else builds[0]
-        dest = downloads_dir() / "gsi" / b.main.filename
+        dest = download_destination(downloads_dir(), "gsi", b.main.filename)
         print(f"Downloading {b.main.filename} (TrebleDroid publishes no checksum; size is checked) …")
         download(b.main.url, dest, size=b.main.size,
                  progress=lambda d, t: print(f"\r  {d * 100 // t if t else 0:3d}%", end="", flush=True))
@@ -375,14 +395,14 @@ def main(argv=None) -> int:
     dl.add_argument("--project", action="append", required=True)
     dl.set_defaults(func=cmd_download)
     i = sub.add_parser("install", help="install a ROM through a custom recovery (adb sideload)")
-    i.add_argument("--rom", required=True, help="ROM zip (from `download` or your own)")
+    i.add_argument("--rom", required=True, help="ROM zip with a reviewed .manifest.json sidecar")
     i.add_argument("--recovery", help="recovery image to boot (or flash with --flash-recovery)")
     i.add_argument("--recovery-name", help="e.g. TWRP, OrangeFox, LineageOS Recovery")
     i.add_argument("--flash-recovery", action="store_true", help="write the recovery instead of booting it once")
     i.add_argument("--recovery-partition", default="recovery", choices=["recovery", "boot", "vendor_boot"])
     i.add_argument("--keep-data", action="store_true", help="don't format data (only for updates of the same ROM)")
     i.add_argument("--extra", action="append", help="zip to sideload after the ROM (GApps, ...)")
-    i.add_argument("--dry-run", action="store_true", help="only print the plan")
+    i.add_argument("--dry-run", action="store_true", help="verify files and print the plan without device changes")
     i.set_defaults(func=cmd_install)
     u = sub.add_parser("unlock", help="check the bootloader and unlock it with the vendor's official method")
     u.add_argument("--dry-run", action="store_true")
@@ -390,7 +410,7 @@ def main(argv=None) -> int:
     g = sub.add_parser("gsi", help="Generic System Images for Treble phones without an official ROM")
     g.add_argument("--download", action="store_true", help="download and unpack the newest matching GSI")
     g.add_argument("--old", action="store_true", help="the alternative '-old' build instead")
-    g.add_argument("--install", metavar="IMAGE", help="flash a GSI image (.img or .img.xz)")
+    g.add_argument("--install", metavar="IMAGE", help="raw .img with a reviewed .manifest.json sidecar")
     g.add_argument("--keep-data", action="store_true")
     g.add_argument("--dry-run", action="store_true")
     g.set_defaults(func=cmd_gsi)

@@ -1,0 +1,14 @@
+# Changelog
+
+## Unreleased
+
+- Record repository audit and the executed 92-test, 65.49% statement-coverage baseline for 0.1.0a5.
+- Document QML migration boundaries, safety gaps and staged review workflow.
+- Add a Qt Quick workspace with real Dashboard discovery, selected-device details, session activity,
+  reusable components and persisted light/dark/system themes, accent, scaling and motion preferences.
+- Preserve existing Widgets catalog/installation workflows and CLI; collect QML/SVG assets in packages.
+- Add offscreen theme screenshots, settings/restart, transport-integration and keyboard/render tests.
+- Add read-only QML ROM/recovery catalogs over the full provider registry, with streaming search,
+  filters, metadata details, source links, cancellation and selected-device result invalidation.
+- Add a persistent QML download queue backed by real catalog artifacts, with pause/resume, retry,
+  file rechecking, single-writer protection, explicit integrity labels and real publisher-download captures.

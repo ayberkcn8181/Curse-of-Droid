@@ -20,9 +20,9 @@ NAME = f"curseofdroid-{OS}-{ARCH}"
 
 
 # Qt parts the app doesn't use (PyInstaller's PySide6 hooks would otherwise pull some of them in)
-QT_UNUSED = ["QtQml", "QtQuick", "QtQuickWidgets", "QtWebEngineCore", "QtWebEngineWidgets", "QtWebChannel",
-             "QtMultimedia", "QtPdf", "QtCharts", "QtDataVisualization", "Qt3DCore", "QtSql", "QtNetwork",
-             "QtOpenGL", "QtOpenGLWidgets", "QtSvg", "QtDBus", "QtPrintSupport", "QtVirtualKeyboard"]
+QT_UNUSED = ["QtQuickWidgets", "QtWebEngineCore", "QtWebEngineWidgets", "QtWebChannel",
+             "QtMultimedia", "QtPdf", "QtCharts", "QtDataVisualization", "Qt3DCore", "QtSql",
+             "QtOpenGLWidgets", "QtDBus", "QtPrintSupport", "QtVirtualKeyboard"]
 
 
 def build(entry: str, name: str, windowed: bool):
@@ -30,7 +30,11 @@ def build(entry: str, name: str, windowed: bool):
             "--distpath", str(DIST / NAME), "--workpath", str(WORK), "--specpath", str(WORK),
             "--paths", str(ROOT)]
     if windowed:
-        args += ["--windowed", "--collect-submodules", "curseofdroid"]
+        args += ["--windowed", "--collect-submodules", "curseofdroid",
+                 "--collect-data", "curseofdroid.gui",
+                 "--hidden-import", "PySide6.QtSvg",
+                 "--hidden-import", "PySide6.QtQuickControls2",
+                 "--hidden-import", "PySide6.QtQuick"]
         args += [x for m in QT_UNUSED for x in ("--exclude-module", f"PySide6.{m}")]
     else:  # the command-line program needs no Qt at all
         args += ["--exclude-module", "PySide6", "--exclude-module", "curseofdroid.gui"]

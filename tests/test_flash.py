@@ -6,7 +6,7 @@ from curseofdroid.device.profile import DeviceProfile
 from curseofdroid.flash.executor import Executor, StepFailed, validate
 from curseofdroid.flash.guard import GuardError, check_command
 from curseofdroid.flash.package import inspect
-from curseofdroid.flash.plan import Command, Plan, Step
+from curseofdroid.flash.plan import Command, InstallTarget, Plan, Step
 from curseofdroid.flash.planner import InstallRequest, PlanError, plan_sideload_install
 from curseofdroid.transport.base import Result
 
@@ -42,16 +42,16 @@ def test_guard_logical_partitions():
     check_command("fastboot", ["flash", "system", "s.img"], logical_ok=True)  # A-only device: real partition
 
 
-def test_guard_adb_raw_writes():
-    check_command("adb", ["shell", "dd if=/tmp/x of=/dev/block/bootdevice/by-name/system bs=4M"])
-    check_command("adb", ["sideload", "rom.zip"])
-    with pytest.raises(GuardError):
-        check_command("adb", ["shell", "dd if=/tmp/x of=/dev/block/mmcblk0p54"])
-    with pytest.raises(GuardError):
-        check_command("adb", ["shell", "dd if=/tmp/x of=/dev/block/by-name/modem"])
-    with pytest.raises(GuardError):
-        check_command("adb", ["shell", "mkfs.f2fs /dev/block/by-name/persist"])
-    check_command("adb", ["shell", "mkfs.f2fs /dev/block/by-name/userdata"])
+@pytest.mark.parametrize("command", [
+    "dd if=/tmp/x of=/dev/block/bootdevice/by-name/system bs=4M",
+    "dd if=/tmp/x of=/dev/block/mmcblk0p54",
+    "dd if=/tmp/x of=/dev/block/by-name/modem",
+    "mkfs.f2fs /dev/block/by-name/persist",
+    "mkfs.f2fs /dev/block/by-name/userdata",
+])
+def test_guard_adb_raw_writes_are_not_plan_commands(command):
+    with pytest.raises(GuardError, match="shell commands are not allowed"):
+        check_command("adb", ["shell", command])
 
 
 # ---- package -----------------------------------------------------------------------------------------------
@@ -83,20 +83,24 @@ def test_package_metadata_and_updater_script(tmp_path):
 
 def profile(**kw):
     base = dict(mode="android", brand="Xiaomi", model="Redmi Note 7", codenames=["lavender"],
-                bootloader_unlocked="yes", battery_percent=80)
+                serial="S1", bootloader_unlocked="yes", battery_percent=80,
+                treble="yes", abi="arm64-v8a", ab="no", system_as_root="yes", dynamic_partitions="no")
     base.update(kw)
     return DeviceProfile(**base)
 
 
 @pytest.fixture
-def rom(tmp_path):
-    return inspect(make_zip(tmp_path, "rom.zip", {"payload.bin": b"x",
-                                                   "META-INF/com/android/metadata": "pre-device=lavender\n"}))
+def rom(tmp_path, artifact_manifest):
+    path = make_zip(tmp_path, "rom.zip", {"payload.bin": b"x",
+                                          "META-INF/com/android/metadata": "pre-device=lavender\n"})
+    artifact_manifest(path)
+    return inspect(path)
 
 
-def test_plan_boots_recovery_temporarily_and_wipes(rom, tmp_path):
+def test_plan_boots_recovery_temporarily_and_wipes(rom, tmp_path, artifact_manifest):
     rec = tmp_path / "twrp.img"
     rec.write_bytes(b"x")
+    artifact_manifest(rec, "recovery")
     plan = plan_sideload_install(profile(), InstallRequest(rom, recovery=rec, recovery_name="TWRP"))
     titles = [s.title for s in plan.steps]
     assert titles[0] == "Reboot to fastboot"
@@ -158,10 +162,11 @@ def test_executor_rejects_whole_plan_before_running():
 
 
 def test_executor_stops_without_consent():
-    plan = Plan("x", [Step("wipe", "", "data-loss", [Command("fastboot", ["erase", "userdata"])])])
+    plan = Plan("x", [Step("wipe", "", "data-loss", [Command("fastboot", ["erase", "userdata"])])],
+                target=InstallTarget("S1", ("lavender",), "no", "", "no"))
     r = runner_for(["device"])
     with pytest.raises(StepFailed, match="cancelled"):
-        Executor("adb", "fastboot", None, FakeUI(consent=False), r, sleep=lambda s: None).run(plan)
+        Executor("adb", "fastboot", "S1", FakeUI(consent=False), r, sleep=lambda s: None).run(plan)
     assert r.calls == []
 
 
@@ -173,7 +178,7 @@ def test_executor_waits_for_mode():
 
 
 @pytest.mark.parametrize("args, why", [
-    (["format:ext4", "persist"], "only userdata"), (["flash:raw", "modem", "k"], "firmware"),
+    (["format:ext4", "persist"], "only userdata"), (["flash:raw", "modem", "k"], "unknown"),
     (["oem", "frp-unlock"], "unknown"), (["oem", "erase-all"], "unknown"), (["flashing", "unlock"], "vendor unlock"),
     (["--slot=all", "flash", "xbl", "x"], "firmware"), (["--skip-reboot"], "without a sub-command"),
 ])
@@ -191,10 +196,11 @@ def test_guard_unlock_only_when_allowed():
     check_command("fastboot", ["--slot=all", "flash", "boot", "b.img"])
 
 
-def test_gsi_plan_dynamic_uses_fastbootd(tmp_path):
+def test_gsi_plan_dynamic_uses_fastbootd(tmp_path, artifact_manifest):
     from curseofdroid.flash.planner import plan_gsi_install
     img = tmp_path / "system.img"
     img.write_bytes(b"x")
+    artifact_manifest(img, "gsi")
     p = profile(dynamic_partitions="yes", mode="android")
     plan = plan_gsi_install(p, img)
     validate(plan)
@@ -203,10 +209,11 @@ def test_gsi_plan_dynamic_uses_fastbootd(tmp_path):
     assert not any("vbmeta" in " ".join(c.args) for s in plan.steps for c in s.commands)
 
 
-def test_gsi_plan_legacy_writes_real_system(tmp_path):
+def test_gsi_plan_legacy_writes_real_system(tmp_path, artifact_manifest):
     from curseofdroid.flash.planner import plan_gsi_install
     img = tmp_path / "system.img"
     img.write_bytes(b"x")
+    artifact_manifest(img, "gsi")
     plan = plan_gsi_install(profile(dynamic_partitions="no", mode="fastboot"), img)
     validate(plan)
     assert not any(s.wait_for == "fastbootd" for s in plan.steps)

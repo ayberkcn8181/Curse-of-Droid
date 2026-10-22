@@ -5,12 +5,15 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Protocol
 
 from ..transport.adb import Adb
 from ..transport.base import Runner, subprocess_runner
 from ..transport.fastboot import Fastboot
-from .guard import GuardError, check_command
+from .artifacts import ArtifactError, ArtifactRequirement, assert_unchanged, verify_artifact
+from .device_checks import DeviceCheckError, DeviceGate, execution_blocker, required_risk
+from .guard import FileUse, GuardError, base_name, check_command
 from .plan import Plan, Step
 
 
@@ -30,12 +33,51 @@ class StepFailed(Exception):
         return f"{self.step.title}: {self.message}"
 
 
-def validate(plan: Plan) -> None:
+def validate(plan: Plan, *, progress: Callable[[int, int], None] | None = None,
+             cancelled: Callable[[], bool] | None = None) -> None:
     """Every command of the plan must pass the guard before the first one runs."""
+    files = {}
     for step in plan.steps:
         for c in step.commands:
-            check_command(c.tool, c.args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
-                          allow_unlock=step.unlock)
+            use = check_command(c.tool, c.args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
+                                allow_unlock=step.unlock, allow_unlock_placeholder=bool(step.ask))
+            risk = required_risk(c.tool, c.args, use)
+            if risk and (not plan.target or step.risk != risk):
+                raise GuardError("write/wipe commands require a bound target and matching consent risk")
+            if plan.target and c.args[:1] in (["-s"], ["-t"]):
+                raise GuardError("a bound installation plan cannot override its device selector")
+            if use:
+                artifact = _required_file(plan, use)
+                files[artifact.path] = artifact
+    total = sum(a.manifest.size for a in files.values())
+    offset = 0
+    for artifact in files.values():
+        def report(done, _size):
+            if progress:
+                progress(offset + done, total)
+        verify_artifact(artifact, progress=report if progress else None, cancelled=cancelled)
+        offset += artifact.manifest.size
+
+
+def _required_file(plan: Plan, use: FileUse) -> ArtifactRequirement:
+    path = Path(use.path)
+    matches = [a for a in plan.artifacts if a.path == path]
+    if not path.is_absolute() or len(matches) != 1:
+        raise ArtifactError("every image/package command needs one captured artifact manifest and an absolute path")
+    artifact = matches[0]
+    if not plan.target or not plan.target.serial or not plan.target.codenames:
+        raise ArtifactError("file operations require an explicit installation target")
+    if not {d.lower() for d in plan.target.codenames}.intersection(d.lower() for d in artifact.manifest.devices):
+        raise ArtifactError("artifact manifest does not match the bound installation target")
+    kind = artifact.manifest.kind
+    if (use.operation == "sideload" and kind not in {"rom", "addon"}
+            or use.operation == "boot" and kind != "recovery"
+            or use.operation == "flash" and kind not in {"gsi", "recovery"}
+            or kind == "gsi" and (use.operation != "flash" or base_name(use.partition) != "system")
+            or kind == "recovery" and use.operation == "flash" and base_name(use.partition) not in {
+                "boot", "init_boot", "vendor_boot", "recovery", "ramdisk", "recovery_ramdisk", "recovery_vendor"}):
+        raise ArtifactError("artifact manifest kind does not match the planned operation/partition")
+    return artifact
 
 
 class Executor:
@@ -45,28 +87,65 @@ class Executor:
         self.fastboot = Fastboot(fastboot_exe, runner, serial)
         self.ui, self.sleep = ui, sleep
         self.serial = serial
+        self._device_gate = None
 
     def run(self, plan: Plan) -> None:
+        self._device_gate = None
         try:
+            if plan.target and (not self.serial or self.serial != plan.target.serial):
+                raise GuardError("executor serial does not match the bound installation target")
             validate(plan)
-        except GuardError as e:
+            if reason := execution_blocker(plan):
+                raise DeviceCheckError(reason)
+            if plan.target:
+                self._device_gate = DeviceGate(self.adb, self.fastboot, plan.target)
+        except (GuardError, ArtifactError, DeviceCheckError) as e:
             raise StepFailed(plan.steps[0] if plan.steps else Step("plan", ""), f"plan rejected: {e}") from None
         for step in plan.steps:
             self.ui.info(f"→ {step.title}")
             if step.risk in ("data-loss", "system-write") and not self.ui.confirm(step):
                 raise StepFailed(step, "cancelled by the user")
+            if step.manual and self._device_gate:
+                try:
+                    self._device_gate.before_manual()
+                except DeviceCheckError as e:
+                    raise StepFailed(step, f"manual step rejected: {e}") from None
             if step.manual and not self.ui.manual(step):
                 raise StepFailed(step, "cancelled by the user")
             answer = ""
             if step.ask:
                 answer = self.ui.ask(step).strip()
-                if not answer or not re.fullmatch(r"[\w-]{1,128}", answer):
+                if not answer or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", answer):
                     raise StepFailed(step, "no valid answer given")
             for c in step.commands:
                 args = [x.replace("{answer}", answer) for x in c.args]
                 # re-check right before running (defence in depth)
-                check_command(c.tool, args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
-                              allow_unlock=step.unlock)
+                try:
+                    if plan.target and (self.serial != plan.target.serial or args[:1] in (["-s"], ["-t"])):
+                        raise GuardError("command no longer matches the bound device selector")
+                    use = check_command(c.tool, args, fastbootd=step.fastbootd, logical_ok=c.logical_ok,
+                                        allow_unlock=step.unlock)
+                    risk = required_risk(c.tool, args, use)
+                    if risk and (not plan.target or step.risk != risk):
+                        raise GuardError("command does not match its write/wipe consent risk")
+                    artifact = None
+                    if use:
+                        artifact = _required_file(plan, use)
+                        verify_artifact(artifact)
+                    if self._device_gate:
+                        if reason := execution_blocker(plan):
+                            raise DeviceCheckError(reason)
+                        if plan.target != self._device_gate.target:
+                            raise GuardError("installation target changed during execution")
+                        args = self._device_gate.before_command(c.tool, args, use, artifact)
+                        check_command(c.tool, args, fastbootd=step.fastbootd, logical_ok=c.logical_ok)
+                        if (self.adb.serial != plan.target.serial or self.fastboot.serial != plan.target.serial
+                                or self.serial != plan.target.serial):
+                            raise GuardError("transport selector changed during device preflight")
+                        if artifact:
+                            assert_unchanged(artifact)
+                except (GuardError, ArtifactError, DeviceCheckError) as e:
+                    raise StepFailed(step, f"command rejected: {e}") from None
                 tool = self.adb if c.tool == "adb" else self.fastboot
                 r = tool.run(*args, timeout=c.timeout)
                 if step.show_output:
@@ -78,6 +157,8 @@ class Executor:
                 self.wait_for(step.wait_for, step)
 
     def current_mode(self) -> str:
+        if self._device_gate:
+            return self._device_gate.mode()
         for d in self.adb.devices():
             if self.serial in (None, d.serial):
                 return {"device": "android"}.get(d.state, d.state)
@@ -89,8 +170,11 @@ class Executor:
     def wait_for(self, mode: str, step: Step) -> None:
         waited = 0.0
         while waited < step.wait_timeout:
-            if self.current_mode() == mode:
-                return
+            try:
+                if self.current_mode() == mode:
+                    return
+            except DeviceCheckError as e:
+                raise StepFailed(step, f"mode check failed: {e}") from None
             self.sleep(2)
             waited += 2
         raise StepFailed(step, f"the phone didn't show up in {mode} mode within {int(step.wait_timeout)} s")

@@ -1,0 +1,22 @@
+{
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "python": "3.12.14",
+  "qt": "6.12.0",
+  "state": "missing",
+  "tools_ready": false,
+  "devices": 0,
+  "catalog_query": "lavender",
+  "catalog": {
+    "roms": {
+      "state": "idle",
+      "rows": 0,
+      "errors": 0
+    },
+    "recovery": {
+      "state": "partial",
+      "rows": 9,
+      "errors": 2
+    }
+  },
+  "method": "QQuickWindow.grabWindow, actual backend, no injected data; offscreen software rendering"
+}
