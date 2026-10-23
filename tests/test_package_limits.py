@@ -144,7 +144,15 @@ def test_zip64_end_records_are_strict_and_bounded(tmp_path, change):
 
 @pytest.mark.parametrize("name", ["payload.bin/", "PAYLOAD.BIN", "../payload.bin", "/payload.bin", "./payload.bin", "a//b", "a/../b", "a\\b", "C:payload.bin", "bad\x01name", "bad\x7fname", "dir//"])
 def test_ambiguous_or_noncanonical_names_are_rejected(tmp_path, name):
-    path = build(tmp_path / "bad-name.zip", [("payload.bin", b"x"), (name, b"x")])
+    # ZipInfo normalizes os.sep while *writing* on Windows. Put the adversarial
+    # separator into serialized local/central names so every OS reads the same ZIP.
+    emitted_name = "a/b" if name == "a\\b" else name
+    path = build(tmp_path / "bad-name.zip", [("payload.bin", b"x"), (emitted_name, b"x")])
+    if name == "a\\b":
+        def raw_backslash(data, _end, rows):
+            _, cd, local = next(row for row in rows if row[0] == "a/b")
+            data[cd+46+1] = data[local+30+1] = ord("\\")
+        mutate(path, raw_backslash)
     with pytest.raises(PackageError): inspect(path)
 
 
@@ -387,6 +395,10 @@ def test_additional_size_header_and_local_extra_conflicts(tmp_path, change):
         else:
             name_size = struct.unpack_from("<H", data, local+26)[0]
             extra = local + 30 + name_size
+            if change == "missing-local64":
+                # A required ZIP64 extra is only missing when these sentinels
+                # are present. Writers differ in whether small local sizes use them.
+                struct.pack_into("<2I", data, local+18, 0xFFFFFFFF, 0xFFFFFFFF)
             struct.pack_into("<H", data, extra+(2 if change == "local-extra" else 0), 0xFFFF)
     mutate(path, patch)
     with pytest.raises(PackageError): inspect(path)
