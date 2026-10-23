@@ -192,9 +192,9 @@ class InstallationPreview(QObject):
                 if kind == "gsi":
                     plan = plan_gsi_install(profile, Path(paths["main"]), wipe_data=wipe)
                 else:
-                    request = InstallRequest(inspect(Path(paths["main"])),
+                    request = InstallRequest(inspect(Path(paths["main"]), cancelled=cancelled.is_set),
                         recovery=Path(paths["recovery"]) if paths["recovery"] else None,
-                        extras=(inspect(Path(paths["addon"])),) if paths["addon"] else (), wipe_data=wipe)
+                        extras=(inspect(Path(paths["addon"]), cancelled=cancelled.is_set),) if paths["addon"] else (), wipe_data=wipe)
                     plan = plan_sideload_install(profile, request)
                 validate(plan, progress=progress, cancelled=cancelled.is_set)
                 if cancelled.is_set(): raise VerificationCancelled("file verification cancelled")

@@ -89,5 +89,7 @@ consent/operation context; and a private staging strategy to narrow the race bet
 check and the external tool opening the filename. Reported device identity does not detect serial spoofing and sequential probes cannot guarantee
 an atomic device state. A verified digest and matching declared ABI do not prove an image can boot.
 
-Archive/decompression budgets, cancellable verification progress and hardware tests also remain.
-No existing safety PR is merged or bypassed by this change.
+[ROM ZIP inspection](PACKAGE_INSPECTION.md) now bounds directory/text reads and decompression, supports
+metadata cancellation and binds its captured file identity to ROM/add-on requirements. Shared hashing also
+supports cancellable progress in QML. Full archive/image validation, other decompression paths and hardware
+tests remain. Existing command/device gates are not bypassed.
