@@ -31,6 +31,14 @@ the descriptor identity. The planner requires the ROM/add-on artifact reference 
 so metadata from an earlier file cannot silently bind to a replacement with a newly supplied sidecar.
 Full SHA-256 validation is still required separately.
 
+On Windows, the shared regular-file opener now holds a native read handle with only `FILE_SHARE_READ`.
+Other readers remain allowed; an existing writer prevents opening, and new writes/deletes/replacements
+are denied until the inspection/hash stream closes. This avoids relying on timestamps that Windows may
+cache during concurrent same-size writes. The handle opens the reparse point itself rather than following
+a substituted link, and ownership passes once to the non-inheritable CRT descriptor. Unix retains the
+existing no-follow/nonblocking opener and identity checks. This is not cross-platform immutable staging:
+after the stream closes, the file can change and subsequent operations still require revalidation.
+
 ## Accepted subset and consistency checks
 
 The inspector accepts ordinary single-disk ZIP directories and standard fixed-size ZIP64 end records,
@@ -38,6 +46,8 @@ including bounded archive comments, local ZIP64 size fields and streaming data-d
 end-record/directory offsets, actual record counts and variable field bounds before `ZipFile` allocates the
 member list. The guarded file wrapper continues limiting reads during the library constructor, so changing
 an end record after the initial budget check cannot authorize an unbounded read.
+An empty validated directory is classified directly as unknown, avoiding older Python 3.10 ZIP64 probes
+that seek before the start of a minimal empty archive.
 
 Self-extracting/prefixed archives, multi-disk or extensible ZIP64 end records, trailing archive bytes and
 ambiguous end records are not supported. Ordinary non-ZIP input is classified as unknown. ZIP comments
@@ -84,6 +94,8 @@ file changes, reader budgets and cancellation. A virtual sparse byte source chec
 4 GiB without allocating a physical 4-GiB file on Windows. CLI and actual Qt/QML worker regressions cover
 error display, stale-plan clearing and cancellation during metadata before hashing. Executed counts and
 native CI are in the PR. No device write, wipe, unlock, reboot or sideload is performed.
+Three Windows-only native cases verify concurrent readers, denied same-size edits/replacements, release
+on close and exclusion of existing writers. They are skipped on Linux/macOS, where this API is unavailable.
 
 Publisher-authenticated metadata/download receipts, archive signatures and full payload validation, actual
 image ABI/filesystem/boot inspection, device-specific wipe/recovery/snapshot rules, private staging and
@@ -94,3 +106,5 @@ Format/API references:
 
 - [PKWARE ZIP APPNOTE, directory/end-record and local-header structures](https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT)
 - [Python 3.13 zipfile documentation and resource limitations](https://docs.python.org/3.13/library/zipfile.html)
+- [Microsoft CreateFileW access and sharing rules](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
+- [Microsoft CRT handle ownership transfer](https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/open-osfhandle)

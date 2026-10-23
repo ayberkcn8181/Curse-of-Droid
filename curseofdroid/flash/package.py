@@ -268,6 +268,10 @@ def _text(archive, name, reader, end_offset):
 
 def _inspect_zip(path, reader):
     directory, _, count = _directory(reader)
+    if count == 0:
+        # The validated empty directory has no members to classify. Older
+        # Python ZIP64 probes seek before byte zero on this 22-byte archive.
+        return PackageInfo(path, "unknown")
     reader.seek(0)
     with zipfile.ZipFile(reader) as archive:
         names, ends = _entries(archive, directory, count, reader)

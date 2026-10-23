@@ -99,8 +99,12 @@ def test_non_zip_inputs_are_unknown_not_executed(tmp_path, data):
     assert inspect(path).kind == "unknown"
 
 
-def test_empty_valid_zip_and_image_classification(tmp_path):
-    assert inspect(build(tmp_path / "empty.zip", {})).kind == "unknown"
+@pytest.mark.parametrize("end64", [False, True])
+def test_empty_valid_zip_and_image_classification(tmp_path, end64):
+    path = build(tmp_path / "empty.zip", {})
+    if end64:
+        zip64(path)
+    assert inspect(path).kind == "unknown"
     assert inspect(tmp_path / "not-opened.img").kind == "image"
 
 
@@ -290,14 +294,14 @@ def test_file_edit_or_replacement_during_inspection_is_refused(tmp_path, monkeyp
                 os.replace(other, path)
                 return result
             except PermissionError:
-                # Windows may deny replacement of the open handle: an in-place
-                # size change must still stop before a result is returned.
+                # A Windows read handle denies replacement and editing. On
+                # other platforms the identity checks must refuse the edit.
                 pass
         with path.open("ab") as output:
             output.write(b"changed")
         return result
     monkeypatch.setattr(package, "_entries", change_file)
-    with pytest.raises(PackageError, match="changed|replaced"): inspect(path)
+    with pytest.raises(PackageError): inspect(path)
 
 
 def test_stale_package_metadata_cannot_be_bound_to_a_new_manifest(tmp_path, artifact_manifest):

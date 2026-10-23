@@ -92,3 +92,6 @@ classic/ZIP64 directories, stored/deflated metadata, malformed headers/counts, f
 canonical names, resource limits, cancellation, and metadata-to-plan identity binding. The virtual large-offset
 case checks ZIP64 offsets above 4 GiB without allocating a physical 4-GiB file. CLI and Widgets regressions
 verify ordinary planning errors and stale-action clearing. See [package inspection](PACKAGE_INSPECTION.md).
+`tests/test_windows_artifact_sharing.py` exercises actual Windows read-sharing exclusion for writes,
+replacements and existing writers. Its three cases intentionally skip on Linux/macOS. Empty classic and
+ZIP64 archives are also covered, including native Python 3.10 runners with older ZIP64 probing behavior.
