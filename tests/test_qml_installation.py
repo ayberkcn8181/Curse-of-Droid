@@ -327,3 +327,36 @@ def test_actual_window_defers_close_during_verification_and_remains_responsive(a
         window.close()
         runtime.shutdown()
         app.processEvents()
+
+
+def test_cancel_during_real_package_metadata_stops_before_hashing(app, preview, tmp_path, artifact_manifest, monkeypatch):
+    from curseofdroid.flash import package
+    path = tmp_path / "metadata.zip"
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("payload.bin", b"unread")
+        archive.writestr(package.META, b"pre-device=lavender\n#" + b"x" * (2 * package.READ_CHUNK))
+    artifact_manifest(path)
+    entered, release, stopped = threading.Event(), threading.Event(), threading.Event()
+    original = package._Reader.read
+    def read(reader, size=-1):
+        if size == package.READ_CHUNK:
+            assert callable(reader.cancelled)
+            entered.set()
+            release.wait(4)
+            try:
+                return original(reader, size)
+            except VerificationCancelled:
+                stopped.set()
+                raise
+        return original(reader, size)
+    monkeypatch.setattr(package._Reader, "read", read)
+    monkeypatch.setattr("curseofdroid.gui.installation.validate", lambda *a, **kw: pytest.fail("metadata cancellation reached hashing"))
+    preview.setPath("main", str(path))
+    preview.verify()
+    wait(app, entered.is_set)
+    try:
+        preview.cancel()
+    finally:
+        release.set()
+        wait(app, lambda: not preview.busy)
+    assert stopped.is_set() and preview.state == "cancelled" and not preview.planText and not preview.files

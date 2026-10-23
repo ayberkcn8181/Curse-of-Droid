@@ -71,6 +71,8 @@ def plan_sideload_install(profile: DeviceProfile, req: InstallRequest) -> Plan:
     if problems := preflight(profile, req):
         raise PlanError("; ".join(problems))
     rom = _artifact(profile, req.rom.path, "rom")
+    if req.rom.identity is None or req.rom.identity != rom.identity:
+        raise PlanError("ROM package changed since metadata inspection; inspect it again")
     recovery = None
     if req.recovery:
         if req.recovery.suffix.lower() != ".img":
@@ -82,7 +84,10 @@ def plan_sideload_install(profile: DeviceProfile, req: InstallRequest) -> Plan:
             raise PlanError(f"{extra.path.name} is not an installable add-on package")
         if extra.matches(profile.codenames) is False:
             raise PlanError(f"{extra.path.name}: embedded add-on targets do not match the selected device")
-        extras.append(_artifact(profile, extra.path, "addon"))
+        artifact = _artifact(profile, extra.path, "addon")
+        if extra.identity is None or extra.identity != artifact.identity:
+            raise PlanError("add-on package changed since metadata inspection; inspect it again")
+        extras.append(artifact)
     artifacts = (rom,) + ((recovery,) if recovery else ()) + tuple(extras)
     steps: list[Step] = []
     warnings = []

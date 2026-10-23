@@ -437,3 +437,12 @@ def test_cli_aggregate_gsi_wipe_is_visible_in_dry_run_and_blocked_before_start(d
     assert "Aggregate fastboot -w is blocked" in capsys.readouterr().out
     args.dry_run = False
     assert cli.cmd_gsi(args) == 1
+
+
+def test_cli_reports_malformed_zip_before_any_start_prompt(device, rom, monkeypatch, capsys):
+    setup_cli(monkeypatch, device)
+    rom.write_bytes(b"PK\x03\x04truncated ZIP")
+    args = SimpleNamespace(rom=str(rom), recovery=None, recovery_name="", flash_recovery=False,
+                           recovery_partition="recovery", keep_data=False, extra=[], dry_run=True)
+    assert cli.cmd_install(args) == 1
+    assert "ZIP end record" in capsys.readouterr().out

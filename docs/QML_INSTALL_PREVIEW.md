@@ -19,8 +19,9 @@ commands, reboots, erases or transfers a package. Device discovery remains the D
    erase anything. Retaining data is appropriate only when the specific ROM/device instructions permit it.
 5. Verify & prepare plan reads package/reference metadata and runs the shared planner and full guard/hash
    validation in a worker. Progress counts all referenced file bytes using Python integers, including files
-   larger than 2 GiB. Cancel cooperates between 1 MiB hash reads; it cannot interrupt an already blocked
-   filesystem read or a package-metadata call.
+   larger than 2 GiB. Cancel cooperates between 1 MiB hash reads and bounded ZIP metadata reads/decoding;
+   it cannot interrupt an already blocked filesystem operation or the bounded Python ZIP directory constructor.
+   See [package inspection limits](PACKAGE_INSPECTION.md).
 6. Review human-readable steps, explicit data-loss/system-write labels, individual file/reference details,
    and selectable plain-text commands. The success message means **SHA-256 references matched**.
    Publisher authenticity, image ABI/filesystem/boot compatibility and live device execution authorization
@@ -74,8 +75,8 @@ state. Successful preview behavior is covered with explicitly controlled file/de
 
 ## Remaining work
 
-Publisher-authenticated metadata and download receipts, bounded archive inspection, actual image compatibility
+Publisher-authenticated metadata and download receipts, archive signatures/full-payload validation, actual image compatibility
 inspection, recovery identity/manual handoff, device-specific wipe/partition/snapshot rules, private staging,
-stronger execution consent and hardware validation remain. Cancellable hashing does not make all metadata
-inspection cancellable. File/reference matching does not establish authenticity or bootability. See
+stronger execution consent and hardware validation remain. ZIP metadata now has bounded, cooperative
+cancellation; not every filesystem operation or decompression path can be interrupted. File/reference matching does not establish authenticity or bootability. See
 [fresh-device limits](FRESH_DEVICE_PREFLIGHT.md) before designing execution.

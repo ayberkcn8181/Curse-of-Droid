@@ -97,7 +97,9 @@ pause/resume, retry, publisher checksum checks, file rechecking and folder acces
 are labeled explicitly; restored history requires checks again. See [download details](docs/QML_DOWNLOADS.md).
 The **Installation plan** page uses the shared backend to prepare ROM/GSI plans and verify individual
 SHA-256 references in a cancellable worker. It supports local ROM/recovery/add-on files, explicit target
-snapshots, progress, step/risk review and visible execution blockers. It clears stale results when inputs or
+snapshots, progress, step/risk review and visible execution blockers. ROM ZIP inspection has explicit
+directory/decompression budgets and metadata cancellation; see [package inspection](docs/PACKAGE_INSPECTION.md).
+It clears stale results when inputs or
 the device change. This page has no device execution action. See [preview details](docs/QML_INSTALL_PREVIEW.md).
 Light, dark and system themes apply immediately; theme, accent, workspace scale and
 motion preferences persist. Discovery uses the same read-only Python services as the CLI and runs in workers.
