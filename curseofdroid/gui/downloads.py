@@ -152,8 +152,9 @@ class DownloadManager(QObject):
             self.notice.emit(self._storage_error)
             return False
 
+    @Slot(object)
     def enqueue(self, build):
-        """Python-only entry point: Runtime wires a selected catalog Build, never a QML-supplied URL."""
+        """Accept only a catalog Build; never trust a QML-supplied URL/object."""
         try:
             if self._load_failed or self._write_locked or self._closed:
                 raise ValueError(self._storage_error)

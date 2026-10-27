@@ -115,7 +115,7 @@ class ThemeManager(QObject):
             self.changed.emit()
 
     @Slot()
-    def _system_changed(self, *_):
+    def _system_changed(self):
         if self._mode == "system":
             self._apply_palette()
             self.changed.emit()
