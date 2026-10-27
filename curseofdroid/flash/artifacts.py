@@ -70,10 +70,36 @@ def _regular(path: Path) -> os.stat_result:
     return s
 
 
+def _open_windows_readonly(path: Path) -> int:
+    # CRT open() permits concurrent writers. Deny writes/deletes while reading,
+    # because Windows may cache timestamps until a competing handle closes.
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    create = kernel.CreateFileW
+    create.argtypes = (wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                       wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE)
+    create.restype = wintypes.HANDLE
+    close = kernel.CloseHandle
+    close.argtypes, close.restype = (wintypes.HANDLE,), wintypes.BOOL
+    # GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, OPEN_REPARSE_POINT | NORMAL.
+    handle = create(str(path), 0x80000000, 1, None, 3, 0x00200080, None)
+    if handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        # Ownership transfers to the CRT descriptor, then to fdopen's stream.
+        return msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY | os.O_NOINHERIT)
+    except BaseException:
+        close(handle)
+        raise
+
+
 def _open_regular(path: Path):
     # NONBLOCK prevents a concurrently substituted FIFO from blocking open().
     flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
-    fd = os.open(path, flags)
+    fd = _open_windows_readonly(path) if os.name == "nt" else os.open(path, flags)
     try:
         if not stat.S_ISREG(os.fstat(fd).st_mode):
             raise ArtifactError("installation input is no longer a regular file")

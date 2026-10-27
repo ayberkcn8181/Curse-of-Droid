@@ -17,7 +17,7 @@ from ..catalog.providers import TWRP, find_builds, is_stale
 from ..device.detect import Detected, detect
 from ..flash.executor import Executor, StepFailed
 from ..flash.device_checks import execution_blocker
-from ..flash.package import inspect as inspect_package
+from ..flash.package import PackageError, inspect as inspect_package
 from ..catalog.deviceinfo import device_info
 from ..catalog.gsi import trebledroid_builds, unpack_xz
 from ..flash.planner import InstallRequest, PlanError, plan_gsi_install, plan_sideload_install
@@ -363,15 +363,15 @@ class MainWindow(QMainWindow):
                 return
             self.show_install_plan()
             return
-        req = InstallRequest(
-            inspect_package(Path(self.rom_edit.text())),
-            recovery=Path(self.recovery_edit.text()) if self.recovery_edit.text() else None,
-            recovery_name=self.recovery_name.currentText(), flash_recovery=self.flash_rec.isChecked(),
-            wipe_data=not self.keep_data.isChecked(),
-            extras=tuple(inspect_package(Path(x.strip())) for x in self.extras_edit.text().split(";") if x.strip()))
         try:
+            req = InstallRequest(
+                inspect_package(Path(self.rom_edit.text())),
+                recovery=Path(self.recovery_edit.text()) if self.recovery_edit.text() else None,
+                recovery_name=self.recovery_name.currentText(), flash_recovery=self.flash_rec.isChecked(),
+                wipe_data=not self.keep_data.isChecked(),
+                extras=tuple(inspect_package(Path(x.strip())) for x in self.extras_edit.text().split(";") if x.strip()))
             self.plan = plan_sideload_install(self.device.profile, req)
-        except PlanError as e:
+        except (PlanError, PackageError, OSError) as e:
             self.plan_view.setPlainText(f"Can't install: {e}")
             return
         self.show_install_plan()

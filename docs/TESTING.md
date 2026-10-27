@@ -83,3 +83,15 @@ They cover cancellation and late-result races, input/device invalidation, 64-bit
 duplicate serials, responsive GUI/close handling and dark/light rendering at both supported window sizes.
 `python -m curseofdroid.gui.capture --pages install --output docs/screenshots/install-preview` records
 actual application windows; see [the preview guide](QML_INSTALL_PREVIEW.md) for state and scope.
+
+
+## Bounded ROM ZIP metadata
+
+`python -m pytest tests/test_package_limits.py tests/test_qml_installation.py -q` covers bounded
+classic/ZIP64 directories, stored/deflated metadata, malformed headers/counts, forged metadata sizes/CRCs,
+canonical names, resource limits, cancellation, and metadata-to-plan identity binding. The virtual large-offset
+case checks ZIP64 offsets above 4 GiB without allocating a physical 4-GiB file. CLI and Widgets regressions
+verify ordinary planning errors and stale-action clearing. See [package inspection](PACKAGE_INSPECTION.md).
+`tests/test_windows_artifact_sharing.py` exercises actual Windows read-sharing exclusion for writes,
+replacements and existing writers. Its three cases intentionally skip on Linux/macOS. Empty classic and
+ZIP64 archives are also covered, including native Python 3.10 runners with older ZIP64 probing behavior.

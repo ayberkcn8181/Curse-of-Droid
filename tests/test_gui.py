@@ -94,3 +94,17 @@ def test_failed_plan_clears_the_previous_install_action(app, tmp_path, artifact_
     w.run_install()
     assert messages == ["Create a current installation plan first."]
     w.close()
+
+
+def test_malformed_zip_clears_widgets_plan_without_uncaught_exception(app, tmp_path):
+    path = tmp_path / "broken.zip"
+    path.write_bytes(b"PK\x03\x04truncated ZIP")
+    window = MainWindow()
+    window.device = Detected("S1", "android", DeviceProfile(serial="S1", codenames=["lavender"],
+        bootloader_unlocked="yes", ab="no"))
+    window.plan = object()
+    window.rom_edit.setText(str(path))
+    window.make_plan()
+    assert window.plan is None and not window.install_btn.isEnabled()
+    assert "ZIP end record" in window.plan_view.toPlainText()
+    window.close()

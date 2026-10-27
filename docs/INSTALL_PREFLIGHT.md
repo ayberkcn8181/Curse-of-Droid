@@ -59,6 +59,9 @@ installation remains blocked. Do not fill in a locally computed digest simply to
 File identity retains the complete open-handle timestamp tuple. Path-to-handle comparisons use compatible
 identity/size/mtime fields; ctime is compared within the same API, avoiding the differing Windows meanings
 reported in [CPython #157671](https://github.com/python/cpython/issues/157671). SHA-256 checks remain mandatory.
+Windows input handles allow concurrent readers but deny writes/deletes for the lifetime of each read;
+an already open writer prevents the verified read. Unix continues using no-follow/nonblocking opens and
+identity checks. Neither closes the final stream-close-to-tool-open race; private staging remains pending.
 
 Widgets execution already runs in a worker. Failed plan creation clears the previous plan and disables
 its Install action. QML Dashboard/themes/catalog/downloads retain their existing presentation; this
@@ -89,5 +92,7 @@ consent/operation context; and a private staging strategy to narrow the race bet
 check and the external tool opening the filename. Reported device identity does not detect serial spoofing and sequential probes cannot guarantee
 an atomic device state. A verified digest and matching declared ABI do not prove an image can boot.
 
-Archive/decompression budgets, cancellable verification progress and hardware tests also remain.
-No existing safety PR is merged or bypassed by this change.
+[ROM ZIP inspection](PACKAGE_INSPECTION.md) now bounds directory/text reads and decompression, supports
+metadata cancellation and binds its captured file identity to ROM/add-on requirements. Shared hashing also
+supports cancellable progress in QML. Full archive/image validation, other decompression paths and hardware
+tests remain. Existing command/device gates are not bypassed.
